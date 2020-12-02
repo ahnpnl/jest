@@ -56,6 +56,8 @@ export interface TransformOptions extends ReducedTransformOptions {
   configString: string;
 }
 
+export type StringMap = Map<string, string>;
+
 export interface Transformer<OptionType = unknown> {
   canInstrument?: boolean;
   createTransformer?: (options?: OptionType) => Transformer;
@@ -70,5 +72,6 @@ export interface Transformer<OptionType = unknown> {
     sourceText: string,
     sourcePath: Config.Path,
     options: TransformOptions,
+    cacheFS: StringMap,
   ) => TransformedSource;
 }

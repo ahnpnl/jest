@@ -31,8 +31,8 @@ import type {
   ReducedTransformOptions,
   TransformResult,
   TransformedSource,
-  Transformer,
-} from './types';
+  Transformer, StringMap
+} from "./types";
 // Use `require` to avoid TS rootDir
 const {version: VERSION} = require('../package.json');
 
@@ -65,11 +65,13 @@ async function waitForPromiseWithCleanup(
 export default class ScriptTransformer {
   private _cache: ProjectCache;
   private _config: Config.ProjectConfig;
+  private _cacheFS: StringMap;
   private _transformCache: Map<Config.Path, Transformer>;
   private _transformConfigCache: Map<Config.Path, unknown>;
 
-  constructor(config: Config.ProjectConfig) {
+  constructor(config: Config.ProjectConfig, cacheFS: StringMap) {
     this._config = config;
+    this._cacheFS = cacheFS;
     this._transformCache = new Map();
     this._transformConfigCache = new Map();
 
@@ -290,7 +292,7 @@ export default class ScriptTransformer {
         ...options,
         config: this._config,
         configString: this._cache.configString,
-      });
+      }, this._cacheFS);
 
       if (typeof processed === 'string') {
         transformed.code = processed;
@@ -548,11 +550,12 @@ export default class ScriptTransformer {
 // TODO: do we need to define the generics twice?
 export function createTranspilingRequire(
   config: Config.ProjectConfig,
+  cacheFS: StringMap,
 ): <TModuleType = unknown>(
   resolverPath: string,
   applyInteropRequireDefault?: boolean,
 ) => TModuleType {
-  const transformer = new ScriptTransformer(config);
+  const transformer = new ScriptTransformer(config, cacheFS);
 
   return function requireAndTranspileModule<TModuleType = unknown>(
     resolverPath: string,
