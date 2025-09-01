@@ -514,6 +514,8 @@ exports[`ScriptTransformer throws an error if \`processAsync\` doesn't return a 
 <red></color>"
 `;
 
+exports[`ScriptTransformer throws an error if coverage reporter is \`babel\` and \`babel-plugin-istanbul\` is not installed 1`] = `"babel-plugin-istanbul is required when using coverageProvider: "babel". Install it with \`npm install --save-dev babel-plugin-istanbul\` or use coverageProvider: "v8" if you want to disable babel instrumentation."`;
+
 exports[`ScriptTransformer throws an error if createTransformer returns object without \`process\` method 1`] = `
 "<red><bold>● Invalid transformer module:</intensity></color>
 <red>  "skipped-required-create-transformer-props-preprocessor" specified in the "transform" object of Jest configuration</color>

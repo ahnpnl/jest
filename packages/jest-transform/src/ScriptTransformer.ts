@@ -8,8 +8,6 @@
 import {createHash} from 'crypto';
 import * as path from 'path';
 import {transformSync as babelTransform} from '@babel/core';
-// @ts-expect-error: should just be `require.resolve`, but the tests mess that up
-import babelPluginIstanbul from 'babel-plugin-istanbul';
 import {fromSource as sourcemapFromSource} from 'convert-source-map';
 import stableStringify from 'fast-json-stable-stringify';
 import * as fs from 'graceful-fs';
@@ -346,41 +344,51 @@ class ScriptTransformer {
   ): TransformedSource {
     const inputCode = typeof input === 'string' ? input : input.code;
     const inputMap = typeof input === 'string' ? null : input.map;
-
-    const result = babelTransform(inputCode, {
-      auxiliaryCommentBefore: ' istanbul ignore next ',
-      babelrc: false,
-      caller: {
-        name: '@jest/transform',
-        supportsDynamicImport: options.supportsDynamicImport,
-        supportsExportNamespaceFrom: options.supportsExportNamespaceFrom,
-        supportsStaticESM: options.supportsStaticESM,
-        supportsTopLevelAwait: options.supportsTopLevelAwait,
-      },
-      configFile: false,
-      filename,
-      plugins: [
-        [
-          babelPluginIstanbul,
-          {
-            compact: false,
-            // files outside `cwd` will not be instrumented
-            cwd: this._config.rootDir,
-            exclude: [],
-            extension: false,
-            inputSourceMap: inputMap,
-            useInlineSourceMaps: false,
-          },
+    try {
+      const babelPluginIstanbul = require.resolve('babel-plugin-istanbul');
+      const result = babelTransform(inputCode, {
+        auxiliaryCommentBefore: ' istanbul ignore next ',
+        babelrc: false,
+        caller: {
+          name: '@jest/transform',
+          supportsDynamicImport: options.supportsDynamicImport,
+          supportsExportNamespaceFrom: options.supportsExportNamespaceFrom,
+          supportsStaticESM: options.supportsStaticESM,
+          supportsTopLevelAwait: options.supportsTopLevelAwait,
+        },
+        configFile: false,
+        filename,
+        plugins: [
+          [
+            babelPluginIstanbul,
+            {
+              compact: false,
+              // files outside `cwd` will not be instrumented
+              cwd: this._config.rootDir,
+              exclude: [],
+              extension: false,
+              inputSourceMap: inputMap,
+              useInlineSourceMaps: false,
+            },
+          ],
         ],
-      ],
-      sourceMaps: canMapToInput ? 'both' : false,
-    });
+        sourceMaps: canMapToInput ? 'both' : false,
+      });
 
-    if (result?.code != null) {
-      return result as TransformResult;
+      if (result?.code != null) {
+        return result as TransformResult;
+      }
+
+      return input;
+    } catch {
+      console.warn(
+        'babel-plugin-istanbul is required when using coverageProvider: "babel". ' +
+          'Install it with `npm install --save-dev babel-plugin-istanbul` or ' +
+          'use coverageProvider: "v8" if you want to disable babel instrumentation.',
+      );
+
+      return input;
     }
-
-    return input;
   }
 
   private _buildTransformResult(

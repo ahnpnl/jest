@@ -525,6 +525,35 @@ describe('ScriptTransformer', () => {
     ).rejects.toThrowErrorMatchingSnapshot();
   });
 
+  it('throws an error if coverage reporter is `babel` and `babel-plugin-istanbul` is not installed', async () => {
+    const originalConsoleWarn = console.warn;
+    const fakeConsoleWarn = jest.fn();
+    console.warn = fakeConsoleWarn;
+    jest.doMock('babel-plugin-istanbul', () => {
+      throw new Error('Module not found');
+    });
+    jest.resetModules();
+    config = {
+      ...config,
+      transform: [['\\.js$', 'test_async_preprocessor', {}]],
+    };
+    const {
+      createScriptTransformer: createTransformer,
+    } = require('../ScriptTransformer');
+    const scriptTransformer = await createTransformer(config);
+
+    await scriptTransformer.transformAsync(
+      '/fruits/banana.js',
+      getCoverageOptions({collectCoverage: true, coverageProvider: 'babel'}),
+    );
+
+    expect(fakeConsoleWarn.mock.calls[0][0]).toMatchSnapshot();
+
+    jest.dontMock('babel-plugin-istanbul');
+    jest.resetModules();
+    console.warn = originalConsoleWarn;
+  });
+
   it("(in sync mode) throws an error if `process` isn't defined", async () => {
     config = {
       ...config,
