@@ -87,6 +87,7 @@ class ScriptTransformer {
     {transformer: Transformer; transformerConfig: unknown}
   >();
   private _transformsAreLoaded = false;
+  private _babelPluginIstanbul: unknown = undefined;
 
   constructor(
     private readonly _config: Config.ProjectConfig,
@@ -107,6 +108,19 @@ class ScriptTransformer {
     }
 
     this._cache = projectCache;
+  }
+
+  private async _loadBabelPluginIstanbul(): Promise<void> {
+    if (this._babelPluginIstanbul === undefined) {
+      try {
+        this._babelPluginIstanbul = await requireOrImportModule<unknown>(
+          'babel-plugin-istanbul',
+        );
+      } catch {
+        // babel-plugin-istanbul is not available
+        this._babelPluginIstanbul = null;
+      }
+    }
   }
 
   private _buildCacheKeyFromFileInfo(
@@ -344,51 +358,50 @@ class ScriptTransformer {
   ): TransformedSource {
     const inputCode = typeof input === 'string' ? input : input.code;
     const inputMap = typeof input === 'string' ? null : input.map;
-    try {
-      const babelPluginIstanbul = require.resolve('babel-plugin-istanbul');
-      const result = babelTransform(inputCode, {
-        auxiliaryCommentBefore: ' istanbul ignore next ',
-        babelrc: false,
-        caller: {
-          name: '@jest/transform',
-          supportsDynamicImport: options.supportsDynamicImport,
-          supportsExportNamespaceFrom: options.supportsExportNamespaceFrom,
-          supportsStaticESM: options.supportsStaticESM,
-          supportsTopLevelAwait: options.supportsTopLevelAwait,
-        },
-        configFile: false,
-        filename,
-        plugins: [
-          [
-            babelPluginIstanbul,
-            {
-              compact: false,
-              // files outside `cwd` will not be instrumented
-              cwd: this._config.rootDir,
-              exclude: [],
-              extension: false,
-              inputSourceMap: inputMap,
-              useInlineSourceMaps: false,
-            },
-          ],
-        ],
-        sourceMaps: canMapToInput ? 'both' : false,
-      });
-
-      if (result?.code != null) {
-        return result as TransformResult;
-      }
-
-      return input;
-    } catch {
+    
+    if (this._babelPluginIstanbul === undefined || this._babelPluginIstanbul === null) {
       console.warn(
         'babel-plugin-istanbul is required when using coverageProvider: "babel". ' +
           'Install it with `npm install --save-dev babel-plugin-istanbul` or ' +
           'use coverageProvider: "v8" if you want to disable babel instrumentation.',
       );
-
       return input;
     }
+    
+    const result = babelTransform(inputCode, {
+      auxiliaryCommentBefore: ' istanbul ignore next ',
+      babelrc: false,
+      caller: {
+        name: '@jest/transform',
+        supportsDynamicImport: options.supportsDynamicImport,
+        supportsExportNamespaceFrom: options.supportsExportNamespaceFrom,
+        supportsStaticESM: options.supportsStaticESM,
+        supportsTopLevelAwait: options.supportsTopLevelAwait,
+      },
+      configFile: false,
+      filename,
+      plugins: [
+        [
+          this._babelPluginIstanbul,
+          {
+            compact: false,
+            // files outside `cwd` will not be instrumented
+            cwd: this._config.rootDir,
+            exclude: [],
+            extension: false,
+            inputSourceMap: inputMap,
+            useInlineSourceMaps: false,
+          },
+        ],
+      ],
+      sourceMaps: canMapToInput ? 'both' : false,
+    });
+
+    if (result?.code != null) {
+      return result as TransformResult;
+    }
+
+    return input;
   }
 
   private _buildTransformResult(
@@ -707,6 +720,12 @@ class ScriptTransformer {
     const instrument =
       options.coverageProvider === 'babel' &&
       shouldInstrument(filename, options, this._config);
+    
+    // Preload babel-plugin-istanbul if babel coverage provider is used
+    if (options.coverageProvider === 'babel') {
+      await this._loadBabelPluginIstanbul();
+    }
+    
     const scriptCacheKey = getScriptCacheKey(filename, instrument);
     let result = this._cache.transformedFiles.get(scriptCacheKey);
     if (result) {
@@ -735,6 +754,16 @@ class ScriptTransformer {
     const instrument =
       options.coverageProvider === 'babel' &&
       shouldInstrument(filename, options, this._config);
+    
+    // For sync transform, try to load babel-plugin-istanbul synchronously if needed
+    if (options.coverageProvider === 'babel' && this._babelPluginIstanbul === undefined) {
+      try {
+        this._babelPluginIstanbul = require('babel-plugin-istanbul');
+      } catch {
+        this._babelPluginIstanbul = null;
+      }
+    }
+    
     const scriptCacheKey = getScriptCacheKey(filename, instrument);
 
     let result = this._cache.transformedFiles.get(scriptCacheKey);
