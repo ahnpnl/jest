@@ -1,5 +1,9 @@
 ## main
 
+## Features
+
+- `[jest-config]` add `defineConfig` function to support defining Jest config with type safety
+
 ## 30.1.3
 
 ### Fixes
