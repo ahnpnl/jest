@@ -8,8 +8,6 @@
 import {createHash} from 'crypto';
 import * as path from 'path';
 import {transformSync as babelTransform} from '@babel/core';
-// @ts-expect-error: should just be `require.resolve`, but the tests mess that up
-import babelPluginIstanbul from 'babel-plugin-istanbul';
 import {fromSource as sourcemapFromSource} from 'convert-source-map';
 import stableStringify from 'fast-json-stable-stringify';
 import * as fs from 'graceful-fs';
@@ -89,6 +87,7 @@ class ScriptTransformer {
     {transformer: Transformer; transformerConfig: unknown}
   >();
   private _transformsAreLoaded = false;
+  private _babelPluginIstanbul: unknown = undefined;
 
   constructor(
     private readonly _config: Config.ProjectConfig,
@@ -109,6 +108,19 @@ class ScriptTransformer {
     }
 
     this._cache = projectCache;
+  }
+
+  private async _loadBabelPluginIstanbul(): Promise<void> {
+    if (this._babelPluginIstanbul === undefined) {
+      try {
+        this._babelPluginIstanbul = await requireOrImportModule<unknown>(
+          'babel-plugin-istanbul',
+        );
+      } catch {
+        // babel-plugin-istanbul is not available
+        this._babelPluginIstanbul = null;
+      }
+    }
   }
 
   private _buildCacheKeyFromFileInfo(
@@ -346,7 +358,16 @@ class ScriptTransformer {
   ): TransformedSource {
     const inputCode = typeof input === 'string' ? input : input.code;
     const inputMap = typeof input === 'string' ? null : input.map;
-
+    
+    if (this._babelPluginIstanbul === undefined || this._babelPluginIstanbul === null) {
+      console.warn(
+        'babel-plugin-istanbul is required when using coverageProvider: "babel". ' +
+          'Install it with `npm install --save-dev babel-plugin-istanbul` or ' +
+          'use coverageProvider: "v8" if you want to disable babel instrumentation.',
+      );
+      return input;
+    }
+    
     const result = babelTransform(inputCode, {
       auxiliaryCommentBefore: ' istanbul ignore next ',
       babelrc: false,
@@ -361,7 +382,7 @@ class ScriptTransformer {
       filename,
       plugins: [
         [
-          babelPluginIstanbul,
+          this._babelPluginIstanbul,
           {
             compact: false,
             // files outside `cwd` will not be instrumented
@@ -699,6 +720,12 @@ class ScriptTransformer {
     const instrument =
       options.coverageProvider === 'babel' &&
       shouldInstrument(filename, options, this._config);
+    
+    // Preload babel-plugin-istanbul if babel coverage provider is used
+    if (options.coverageProvider === 'babel') {
+      await this._loadBabelPluginIstanbul();
+    }
+    
     const scriptCacheKey = getScriptCacheKey(filename, instrument);
     let result = this._cache.transformedFiles.get(scriptCacheKey);
     if (result) {
@@ -727,6 +754,16 @@ class ScriptTransformer {
     const instrument =
       options.coverageProvider === 'babel' &&
       shouldInstrument(filename, options, this._config);
+    
+    // For sync transform, try to load babel-plugin-istanbul synchronously if needed
+    if (options.coverageProvider === 'babel' && this._babelPluginIstanbul === undefined) {
+      try {
+        this._babelPluginIstanbul = require('babel-plugin-istanbul');
+      } catch {
+        this._babelPluginIstanbul = null;
+      }
+    }
+    
     const scriptCacheKey = getScriptCacheKey(filename, instrument);
 
     let result = this._cache.transformedFiles.get(scriptCacheKey);

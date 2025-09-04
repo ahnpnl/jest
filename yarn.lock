@@ -4204,6 +4204,11 @@ __metadata:
     pirates: "npm:^4.0.7"
     slash: "npm:^3.0.0"
     write-file-atomic: "npm:^5.0.1"
+  peerDependencies:
+    babel-plugin-istanbul: ^7.0.0
+  peerDependenciesMeta:
+    babel-plugin-istanbul:
+      optional: true
   languageName: unknown
   linkType: soft
 
