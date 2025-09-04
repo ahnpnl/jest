@@ -108,4 +108,13 @@ describe('defineConfig', () => {
       expect.arrayContaining([expect.stringMatching(/setup\.js$/)]),
     );
   });
+
+  test('works with defineConfig in JavaScript config file', () => {
+    const result = runJest('define-config', ['--config=jest.config.js']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toMatch('Test Suites: 1 passed');
+    expect(result.stderr).toMatch('Tests:       2 passed');
+    expect(result.stdout).toMatch('All files');
+  });
 });
