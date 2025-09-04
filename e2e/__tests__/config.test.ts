@@ -75,3 +75,46 @@ test('negated flags override previous flags', () => {
 
   expect(globalConfig.silent).toBe(true);
 });
+
+describe('defineConfig', () => {
+  test('works with defineConfig in TypeScript config file', () => {
+    const result = runJest('define-config', ['--config=jest.config.ts']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toMatch('Test Suites: 1 passed');
+    expect(result.stderr).toMatch('Tests:       2 passed');
+    expect(result.stdout).toMatch('All files');
+  });
+
+  test('works with defineConfig merging multiple configs', () => {
+    const result = runJest('define-config', [
+      '--config=jest.config.merge.ts',
+      '__tests__/merge.test.js',
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toMatch('Test Suites: 1 passed');
+    expect(result.stderr).toMatch('Tests:       1 passed');
+  });
+
+  test('defineConfig merging works at runtime', () => {
+    const {globalConfig, configs} = getConfig('define-config', [
+      '--config=jest.config.merge.ts',
+    ]);
+
+    expect(configs[0].testEnvironment).toMatch(/jsdom/);
+    expect(globalConfig.collectCoverage).toBe(true);
+    expect(configs[0].setupFilesAfterEnv).toEqual(
+      expect.arrayContaining([expect.stringMatching(/setup\.js$/)]),
+    );
+  });
+
+  test('works with defineConfig in JavaScript config file', () => {
+    const result = runJest('define-config', ['--config=jest.config.js']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toMatch('Test Suites: 1 passed');
+    expect(result.stderr).toMatch('Tests:       2 passed');
+    expect(result.stdout).toMatch('All files');
+  });
+});

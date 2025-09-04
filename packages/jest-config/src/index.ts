@@ -7,6 +7,7 @@
 
 import * as path from 'path';
 import chalk from 'chalk';
+import merge from 'deepmerge';
 import * as fs from 'graceful-fs';
 import type {Config} from '@jest/types';
 import {tryRealpath} from 'jest-util';
@@ -30,6 +31,41 @@ type ReadConfig = {
   hasDeprecationWarnings: boolean;
   projectConfig: Config.ProjectConfig;
 };
+
+/**
+ * Defines a Jest configuration with TypeScript support and autocompletion.
+ * Can accept a single configuration object or multiple configuration objects to merge.
+ *
+ * @param configs - One or more Jest configuration objects to define/merge
+ * @returns The configuration object(s) merged together
+ *
+ * @example
+ * // Single configuration
+ * export default defineConfig({
+ *   testEnvironment: 'node',
+ *   collectCoverage: true
+ * });
+ *
+ * @example
+ * // Multiple configurations merged
+ * export default defineConfig(baseConfig, {
+ *   testEnvironment: 'jsdom',
+ *   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts']
+ * });
+ */
+export function defineConfig(
+  ...configs: Array<Config.InitialOptions>
+): Config.InitialOptions {
+  if (configs.length === 0) {
+    return {};
+  }
+
+  if (configs.length === 1) {
+    return configs[0];
+  }
+
+  return merge.all(configs) as Config.InitialOptions;
+}
 
 export async function readConfig(
   argv: Config.Argv,
