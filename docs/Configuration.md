@@ -1183,6 +1183,76 @@ If you also have specified [`rootDir`](#rootdir-string), the resolution of this 
 
 :::
 
+### `plugins` \[array&lt;Plugin&gt;]
+
+Default: `[]`
+
+An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, customize module resolution, transform code, and more. This API is inspired by Vite and Vitest plugin systems.
+
+Each plugin is an object or a function that returns an object with the following optional methods:
+
+- `name` (required): A unique identifier for the plugin
+- `enforce`: Control execution order (`'pre'` or `'post'`)
+- `config`: Modify Jest configuration before it's normalized
+- `configResolved`: React to the resolved configuration
+- `configureJest`: Configure Jest with access to both project and global config
+- `resolveId`: Control module resolution
+- `load`: Load file contents (useful for virtual modules)
+- `transform`: Transform code before it's executed
+
+```js tab
+/** @type {import('jest').Config} */
+const config = {
+  plugins: [
+    {
+      name: 'my-jest-plugin',
+      configureJest(context) {
+        console.log('Configuring Jest for project:', context.config.rootDir);
+      },
+    },
+  ],
+};
+
+module.exports = config;
+```
+
+```ts tab
+import type {Config} from 'jest';
+
+function myPlugin(): Config.Plugin {
+  return {
+    name: 'my-jest-plugin',
+    enforce: 'pre',
+    config(config, context) {
+      // Modify config before normalization
+      return {
+        ...config,
+        testEnvironment: config.testEnvironment || 'node',
+      };
+    },
+    configResolved(config, context) {
+      // React to resolved configuration
+      console.log('Config resolved for:', config.rootDir);
+    },
+    configureJest(context) {
+      console.log('Configuring Jest for project:', context.config.rootDir);
+    },
+  };
+}
+
+const config: Config = {
+  plugins: [myPlugin()],
+};
+
+export default config;
+```
+
+:::tip
+
+Plugins are processed in order: plugins with `enforce: 'pre'` run first, followed by normal plugins, then plugins with `enforce: 'post'`.
+
+:::
+
 ### `prettierPath` \[string]
 
 Default: `'prettier'`
