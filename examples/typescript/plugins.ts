@@ -26,7 +26,6 @@ export function configModifierPlugin(): Config.Plugin {
         testTimeout: config.testTimeout || 5000,
       };
     },
-    enforce: 'pre',
     name: 'jest:config-modifier',
   };
 }
@@ -44,7 +43,6 @@ export function fullPlugin(): Config.Plugin {
     configureJest(context) {
       console.log('CI mode:', context.globalConfig.ci);
     },
-    enforce: 'post',
     load(id) {
       if (id.startsWith('\0virtual:')) {
         return {

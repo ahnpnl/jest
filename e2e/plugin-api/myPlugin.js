@@ -31,7 +31,6 @@ export function myPlugin() {
       console.log('Plugin configured with project:', context.config.rootDir);
       console.log('Global config ci mode:', context.globalConfig.ci);
     },
-    enforce: 'pre',
     name: 'jest:my-plugin',
   };
 }

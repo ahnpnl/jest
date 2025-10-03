@@ -37,15 +37,6 @@ Plugins can implement various hooks to customize Jest's behavior:
 
 A unique identifier for your plugin. Convention is to use a namespace prefix like `jest:plugin-name`.
 
-### `enforce`
-
-**Type:** `'pre' | 'post'`
-
-Controls the order in which plugins are executed:
-- `'pre'`: Run before normal plugins
-- `'post'`: Run after normal plugins
-- Default: Normal execution order
-
 ### `config`
 
 **Type:** `(config: InitialOptions, context: {configPath: string | null}) => InitialOptions | Promise<InitialOptions> | void | Promise<void>`
@@ -204,8 +195,6 @@ import type {Config} from 'jest';
 
 export function envPlugin(envVars: Record<string, string>): Config.Plugin {
   return {
-    name: 'jest:env-plugin',
-    enforce: 'pre',
     config(config) {
       // Add environment variables to globals
       return {
@@ -219,6 +208,7 @@ export function envPlugin(envVars: Record<string, string>): Config.Plugin {
     configureJest(context) {
       console.log('Environment variables configured');
     },
+    name: 'jest:env-plugin',
   };
 }
 

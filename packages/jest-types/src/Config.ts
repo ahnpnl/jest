@@ -254,8 +254,6 @@ type ShardConfig = {
   shardCount: number;
 };
 
-export type PluginEnforce = 'pre' | 'post';
-
 export type PluginContext = {
   config: ProjectConfig;
   globalConfig: GlobalConfig;
@@ -290,7 +288,6 @@ export type TransformPluginResult =
 
 export interface JestPlugin {
   name: string;
-  enforce?: PluginEnforce;
   config?: (
     config: InitialOptions,
     context: {configPath: string | null},

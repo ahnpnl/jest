@@ -116,15 +116,10 @@ class ScriptTransformer {
   private async _applyPluginTransforms(
     code: string,
     filename: string,
-    enforce?: 'pre' | 'post',
   ): Promise<string> {
     let transformedCode = code;
 
-    const pluginsToApply = this._plugins.filter(
-      plugin =>
-        plugin.transform &&
-        (enforce === undefined || plugin.enforce === enforce),
-    );
+    const pluginsToApply = this._plugins.filter(plugin => plugin.transform);
 
     for (const plugin of pluginsToApply) {
       if (plugin.transform) {
@@ -142,18 +137,10 @@ class ScriptTransformer {
     return transformedCode;
   }
 
-  private _applyPluginTransformsSync(
-    code: string,
-    filename: string,
-    enforce?: 'pre' | 'post',
-  ): string {
+  private _applyPluginTransformsSync(code: string, filename: string): string {
     let transformedCode = code;
 
-    const pluginsToApply = this._plugins.filter(
-      plugin =>
-        plugin.transform &&
-        (enforce === undefined || plugin.enforce === enforce),
-    );
+    const pluginsToApply = this._plugins.filter(plugin => plugin.transform);
 
     for (const plugin of pluginsToApply) {
       if (plugin.transform) {
@@ -579,19 +566,12 @@ class ScriptTransformer {
 
     let shouldCallTransform = false;
 
-    // Apply 'pre' plugin transforms before regular transformers
     let currentContent = content;
-    if (this._plugins.length > 0) {
-      currentContent = this._applyPluginTransformsSync(
-        content,
-        filename,
-        'pre',
-      );
-    }
 
     // Prioritize plugins with transform hooks over regular transformers
     if (this._hasPluginTransforms()) {
-      // If plugins have transforms, create a processed result
+      // If plugins have transforms, apply them
+      currentContent = this._applyPluginTransformsSync(content, filename);
       processed = {code: currentContent, map: null};
     } else if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
@@ -605,26 +585,6 @@ class ScriptTransformer {
         configString: this._cache.configString,
         transformerConfig,
       });
-    }
-
-    // Apply 'post' plugin transforms after regular transformers
-    if (this._plugins.length > 0 && processed) {
-      const postTransformed = this._applyPluginTransformsSync(
-        processed.code,
-        filename,
-        'post',
-      );
-      processed = {...processed, code: postTransformed};
-    }
-
-    // Apply plugin transforms without enforce (default)
-    if (this._plugins.length > 0 && processed) {
-      const defaultTransformed = this._applyPluginTransformsSync(
-        processed.code,
-        filename,
-        undefined,
-      );
-      processed = {...processed, code: defaultTransformed};
     }
 
     createDirectory(path.dirname(cacheFilePath));
@@ -673,19 +633,12 @@ class ScriptTransformer {
 
     let shouldCallTransform = false;
 
-    // Apply 'pre' plugin transforms before regular transformers
     let currentContent = content;
-    if (this._plugins.length > 0) {
-      currentContent = await this._applyPluginTransforms(
-        content,
-        filename,
-        'pre',
-      );
-    }
 
     // Prioritize plugins with transform hooks over regular transformers
     if (this._hasPluginTransforms()) {
-      // If plugins have transforms, create a processed result
+      // If plugins have transforms, apply them
+      currentContent = await this._applyPluginTransforms(content, filename);
       processed = {code: currentContent, map: null};
     } else if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
@@ -704,26 +657,6 @@ class ScriptTransformer {
         configString: this._cache.configString,
         transformerConfig,
       });
-    }
-
-    // Apply 'post' plugin transforms after regular transformers
-    if (this._plugins.length > 0 && processed) {
-      const postTransformed = await this._applyPluginTransforms(
-        processed.code,
-        filename,
-        'post',
-      );
-      processed = {...processed, code: postTransformed};
-    }
-
-    // Apply plugin transforms without enforce (default)
-    if (this._plugins.length > 0 && processed) {
-      const defaultTransformed = await this._applyPluginTransforms(
-        processed.code,
-        filename,
-        undefined,
-      );
-      processed = {...processed, code: defaultTransformed};
     }
 
     createDirectory(path.dirname(cacheFilePath));
