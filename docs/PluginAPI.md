@@ -114,6 +114,141 @@ export function transformPlugin(): Config.JestPlugin {
 }
 ```
 
+### Watch Mode Hooks
+
+The Plugin API unifies Jest's watch plugin functionality, allowing plugins to provide interactive watch mode features alongside configuration and transformation capabilities.
+
+#### `apply`
+
+**Type:** `(hooks: JestPluginHookSubscriber) => void`
+
+Hook into Jest's watch mode lifecycle events. The `hooks` object provides:
+
+- `onFileChange(fn)` - Called when files change
+- `onTestRunComplete(fn)` - Called after each test run
+- `shouldRunTestSuite(fn)` - Filter which test suites should run
+
+```typescript
+export function watchPlugin(): Config.JestPlugin {
+  return {
+    apply(jestHooks) {
+      jestHooks.onTestRunComplete(results => {
+        console.log('Tests completed:', results.numPassedTests);
+      });
+      
+      jestHooks.shouldRunTestSuite(testInfo => {
+        return testInfo.testPath.includes('important');
+      });
+    },
+    name: 'jest:watch-plugin',
+  };
+}
+```
+
+#### `getUsageInfo`
+
+**Type:** `(globalConfig: GlobalConfig) => {key: string; prompt: string} | null`
+
+Define an interactive key binding for watch mode menu. Returns the key and prompt text to display.
+
+```typescript
+export function interactivePlugin(): Config.JestPlugin {
+  return {
+    getUsageInfo(globalConfig) {
+      return {
+        key: 'x',
+        prompt: 'run custom action',
+      };
+    },
+    name: 'jest:interactive-plugin',
+  };
+}
+```
+
+#### `run`
+
+**Type:** `(globalConfig: GlobalConfig, updateConfigAndRun: UpdateConfigCallback) => Promise<void | boolean>`
+
+Called when the user presses the key defined in `getUsageInfo`. Use `updateConfigAndRun` to trigger a new test run with modified configuration.
+
+```typescript
+export function customRunPlugin(): Config.JestPlugin {
+  return {
+    getUsageInfo() {
+      return {key: 't', prompt: 'run only tests with TODO'};
+    },
+    name: 'jest:custom-run-plugin',
+    run(globalConfig, updateConfigAndRun) {
+      updateConfigAndRun({
+        testNamePattern: 'TODO',
+      });
+      return Promise.resolve();
+    },
+  };
+}
+```
+
+#### `onKey`
+
+**Type:** `(value: string) => void`
+
+Called for every key press in watch mode (when `getUsageInfo` is defined). Use this for custom key handling logic.
+
+```typescript
+export function keyHandlerPlugin(): Config.JestPlugin {
+  return {
+    getUsageInfo() {
+      return {key: 'c', prompt: 'custom key handler'};
+    },
+    name: 'jest:key-handler-plugin',
+    onKey(key) {
+      console.log('Key pressed:', key);
+    },
+  };
+}
+```
+
+### Migrating from Watch Plugins
+
+Existing watch plugins can be migrated to the unified Plugin API by:
+
+1. Changing `watchPlugins` to `plugins` in your configuration
+2. Adding a `name` field to your plugin
+3. The `apply`, `getUsageInfo`, `run`, and `onKey` hooks work identically
+
+**Before:**
+```javascript
+// jest.config.js
+module.exports = {
+  watchPlugins: ['my-watch-plugin'],
+};
+
+// my-watch-plugin.js
+class MyWatchPlugin {
+  apply(jestHooks) { /* ... */ }
+  getUsageInfo() { /* ... */ }
+  run() { /* ... */ }
+}
+```
+
+**After:**
+```javascript
+// jest.config.js
+module.exports = {
+  plugins: ['my-plugin'],
+};
+
+// my-plugin.js
+export function myPlugin() {
+  return {
+    name: 'jest:my-plugin',
+    apply(jestHooks) { /* ... */ },
+    getUsageInfo() { /* ... */ },
+    run() { /* ... */ },
+  };
+}
+```
+
 ## Plugin Context
 
 The `PluginContext` object passed to hooks contains:

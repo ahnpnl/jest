@@ -262,6 +262,7 @@ export type JestPluginContext = {
 
 export interface JestPlugin {
   name: string;
+  // Config lifecycle hooks
   config?: (
     config: InitialOptions,
     context: {configPath: string | null},
@@ -271,6 +272,7 @@ export interface JestPlugin {
     context: JestPluginContext,
   ) => void | Promise<void>;
   configureJest?: (context: JestPluginContext) => void | Promise<void>;
+  // Transform hook
   transform?: (
     code: string,
     id: string,
@@ -280,7 +282,74 @@ export interface JestPlugin {
     | null
     | undefined
     | Promise<TransformTypes.TransformResult | string | null | undefined>;
+  // Watch mode hooks (unified from WatchPlugin interface)
+  // These hooks are available for plugins that need watch mode functionality
+  isInternal?: boolean;
+  apply?: (hooks: JestPluginHookSubscriber) => void;
+  getUsageInfo?: (globalConfig: GlobalConfig) => JestPluginUsageData | null;
+  onKey?: (value: string) => void;
+  run?: (
+    globalConfig: GlobalConfig,
+    updateConfigAndRun: JestPluginUpdateConfigCallback,
+  ) => Promise<void | boolean>;
 }
+
+// Watch plugin type re-exports for compatibility and unified API
+export type JestPluginHookSubscriber = {
+  onFileChange: (fn: JestPluginFileChange) => void;
+  onTestRunComplete: (fn: JestPluginTestRunComplete) => void;
+  shouldRunTestSuite: (fn: JestPluginShouldRunTestSuite) => void;
+};
+
+export type JestPluginHookExposedFS = {
+  projects: Array<{
+    config: ProjectConfig;
+    testPaths: Array<string>;
+  }>;
+};
+
+export type JestPluginFileChange = (fs: JestPluginHookExposedFS) => void;
+export type JestPluginShouldRunTestSuite = (testSuiteInfo: {
+  config: ProjectConfig;
+  duration?: number;
+  testPath: string;
+}) => Promise<boolean>;
+export type JestPluginTestRunComplete = (
+  results: import('@jest/test-result').AggregatedResult,
+) => void;
+
+export type JestPluginUsageData = {
+  key: string;
+  prompt: string;
+};
+
+export type JestPluginAllowedConfigOptions = Partial<
+  Pick<
+    GlobalConfig,
+    | 'bail'
+    | 'changedSince'
+    | 'collectCoverage'
+    | 'collectCoverageFrom'
+    | 'coverageDirectory'
+    | 'coverageReporters'
+    | 'findRelatedTests'
+    | 'nonFlagArgs'
+    | 'notify'
+    | 'notifyMode'
+    | 'onlyFailures'
+    | 'reporters'
+    | 'testNamePattern'
+    | 'updateSnapshot'
+    | 'verbose'
+  > & {
+    mode: 'watch' | 'watchAll';
+    testPathPatterns: Array<string>;
+  }
+>;
+
+export type JestPluginUpdateConfigCallback = (
+  config?: JestPluginAllowedConfigOptions,
+) => void;
 
 export type JestPluginConfig =
   | JestPlugin

@@ -1193,7 +1193,7 @@ This is an experimental feature and the API may change in future releases.
 
 :::
 
-An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, transform code, and more. This API is inspired by Vite and Vitest plugin systems.
+An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, transform code, provide watch mode interactivity, and more. This unified API consolidates the previous watch plugin system with new transformation and configuration capabilities.
 
 Each plugin is an object or a function that returns an object with the following optional methods:
 
@@ -1202,6 +1202,10 @@ Each plugin is an object or a function that returns an object with the following
 - `configResolved`: React to the resolved configuration
 - `configureJest`: Configure Jest with access to both project and global config
 - `transform`: Transform code before it's executed
+- `apply`: Hook into watch mode lifecycle events (replaces watch plugin `apply`)
+- `getUsageInfo`: Define interactive watch mode key bindings (replaces watch plugin `getUsageInfo`)
+- `run`: Execute custom actions in watch mode (replaces watch plugin `run`)
+- `onKey`: Handle key presses in watch mode (replaces watch plugin `onKey`)
 
 ```js tab
 /** @type {import('jest').Config} */
@@ -2532,6 +2536,12 @@ export default config;
 ### `watchPlugins` \[array&lt;string | \[string, Object]&gt;]
 
 Default: `[]`
+
+:::tip
+
+Consider migrating to the unified [`plugins`](#plugins-arrayltplugingt) API, which supports both watch mode functionality and additional capabilities like code transformation and configuration modification. The `watchPlugins` field is maintained for backward compatibility.
+
+:::
 
 This option allows you to use custom watch plugins. Read more about watch plugins [here](watch-plugins).
 
