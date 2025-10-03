@@ -89,6 +89,7 @@ class ScriptTransformer {
     {transformer: Transformer; transformerConfig: unknown}
   >();
   private _transformsAreLoaded = false;
+  private readonly _plugins: Array<Config.Plugin>;
 
   constructor(
     private readonly _config: Config.ProjectConfig,
@@ -109,6 +110,73 @@ class ScriptTransformer {
     }
 
     this._cache = projectCache;
+    this._plugins = this._config.plugins ?? [];
+  }
+
+  private async _applyPluginTransforms(
+    code: string,
+    filename: string,
+    enforce?: 'pre' | 'post',
+  ): Promise<string> {
+    let transformedCode = code;
+
+    const pluginsToApply = this._plugins.filter(
+      plugin =>
+        plugin.transform &&
+        (enforce === undefined || plugin.enforce === enforce),
+    );
+
+    for (const plugin of pluginsToApply) {
+      if (plugin.transform) {
+        const result = await plugin.transform(transformedCode, filename);
+        if (result) {
+          if (typeof result === 'string') {
+            transformedCode = result;
+          } else if (result.code) {
+            transformedCode = result.code;
+          }
+        }
+      }
+    }
+
+    return transformedCode;
+  }
+
+  private _applyPluginTransformsSync(
+    code: string,
+    filename: string,
+    enforce?: 'pre' | 'post',
+  ): string {
+    let transformedCode = code;
+
+    const pluginsToApply = this._plugins.filter(
+      plugin =>
+        plugin.transform &&
+        (enforce === undefined || plugin.enforce === enforce),
+    );
+
+    for (const plugin of pluginsToApply) {
+      if (plugin.transform) {
+        const result = plugin.transform(transformedCode, filename);
+        // For sync execution, we need to handle the result immediately
+        // If it's a promise, we can't wait for it in sync context
+        if (result && typeof result === 'object' && 'then' in result) {
+          throw new Error(
+            `Plugin "${plugin.name}" returned a promise from transform hook in sync context. ` +
+              'Please ensure your plugin transform is synchronous or use async transforms.',
+          );
+        }
+        if (result) {
+          if (typeof result === 'string') {
+            transformedCode = result;
+          } else if ('code' in result && result.code) {
+            transformedCode = result.code;
+          }
+        }
+      }
+    }
+
+    return transformedCode;
   }
 
   private _buildCacheKeyFromFileInfo(
@@ -507,18 +575,51 @@ class ScriptTransformer {
 
     let shouldCallTransform = false;
 
+    // Apply 'pre' plugin transforms before regular transformers
+    let currentContent = content;
+    if (this._plugins.length > 0) {
+      currentContent = this._applyPluginTransformsSync(
+        content,
+        filename,
+        'pre',
+      );
+    }
+
     if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
 
       assertSyncTransformer(transformer, this._getTransformPath(filename));
 
-      processed = transformer.process(content, filename, {
+      processed = transformer.process(currentContent, filename, {
         ...options,
         cacheFS: this._cacheFS,
         config: this._config,
         configString: this._cache.configString,
         transformerConfig,
       });
+    } else if (this._plugins.length > 0) {
+      // If no transformer but we have plugins, create a processed result
+      processed = {code: currentContent, map: null};
+    }
+
+    // Apply 'post' plugin transforms after regular transformers
+    if (this._plugins.length > 0 && processed) {
+      const postTransformed = this._applyPluginTransformsSync(
+        processed.code,
+        filename,
+        'post',
+      );
+      processed = {...processed, code: postTransformed};
+    }
+
+    // Apply plugin transforms without enforce (default)
+    if (this._plugins.length > 0 && processed) {
+      const defaultTransformed = this._applyPluginTransformsSync(
+        processed.code,
+        filename,
+        undefined,
+      );
+      processed = {...processed, code: defaultTransformed};
     }
 
     createDirectory(path.dirname(cacheFilePath));
@@ -567,6 +668,16 @@ class ScriptTransformer {
 
     let shouldCallTransform = false;
 
+    // Apply 'pre' plugin transforms before regular transformers
+    let currentContent = content;
+    if (this._plugins.length > 0) {
+      currentContent = await this._applyPluginTransforms(
+        content,
+        filename,
+        'pre',
+      );
+    }
+
     if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
       const process = transformer.processAsync ?? transformer.process;
@@ -577,13 +688,36 @@ class ScriptTransformer {
         'A transformer must always export either a `process` or `processAsync`',
       );
 
-      processed = await process(content, filename, {
+      processed = await process(currentContent, filename, {
         ...options,
         cacheFS: this._cacheFS,
         config: this._config,
         configString: this._cache.configString,
         transformerConfig,
       });
+    } else if (this._plugins.length > 0) {
+      // If no transformer but we have plugins, create a processed result
+      processed = {code: currentContent, map: null};
+    }
+
+    // Apply 'post' plugin transforms after regular transformers
+    if (this._plugins.length > 0 && processed) {
+      const postTransformed = await this._applyPluginTransforms(
+        processed.code,
+        filename,
+        'post',
+      );
+      processed = {...processed, code: postTransformed};
+    }
+
+    // Apply plugin transforms without enforce (default)
+    if (this._plugins.length > 0 && processed) {
+      const defaultTransformed = await this._applyPluginTransforms(
+        processed.code,
+        filename,
+        undefined,
+      );
+      processed = {...processed, code: defaultTransformed};
     }
 
     createDirectory(path.dirname(cacheFilePath));

@@ -37,8 +37,11 @@ export function transformPlugin() {
   return {
     name: 'jest:transform-plugin',
     transform(code, id) {
-      // Example transform that could be used for custom transformations
-      console.log('Transform plugin processing:', id);
+      // Example transform that adds a comment at the top of files
+      if (id.endsWith('.test.ts') || id.endsWith('.test.js')) {
+        console.log('Transform plugin processing test file:', id);
+        return `/* Transformed by jest:transform-plugin */\n${code}`;
+      }
       return code;
     },
   };
