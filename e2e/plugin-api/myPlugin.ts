@@ -5,10 +5,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-/**
- * @returns {import('@jest/types').Config.Plugin}
- */
-export function myPlugin() {
+import type {Config} from '@jest/types';
+
+export function myPlugin(): Config.Plugin {
   return {
     config(config, context) {
       console.log(
@@ -35,10 +34,7 @@ export function myPlugin() {
   };
 }
 
-/**
- * @returns {import('@jest/types').Config.Plugin}
- */
-export function transformPlugin() {
+export function transformPlugin(): Config.Plugin {
   return {
     name: 'jest:transform-plugin',
     transform(code, id) {
