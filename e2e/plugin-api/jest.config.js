@@ -5,12 +5,11 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import type {Config} from '@jest/types';
-import {myPlugin} from './myPlugin';
+import {myPlugin, transformPlugin} from './myPlugin.js';
 
-const config: Config.InitialOptions = {
+const config = {
   displayName: 'Plugin API Test',
-  plugins: [myPlugin()],
+  plugins: [myPlugin(), transformPlugin()],
   testEnvironment: 'node',
 };
 

@@ -121,6 +121,7 @@ export const initialOptions: Config.InitialOptions = {
   openHandlesTimeout: 1000,
   passWithNoTests: false,
   preset: 'react-native',
+  plugins: [],
   prettierPath: '<rootDir>/node_modules/prettier',
   projects: ['project-a', 'project-b/'],
   randomize: false,
@@ -283,6 +284,7 @@ export const initialProjectOptions: Config.InitialProjectOptions = {
   modulePaths: ['/shared/vendor/modules'],
   openHandlesTimeout: 1000,
   preset: 'react-native',
+  plugins: [],
   prettierPath: '<rootDir>/node_modules/prettier',
   reporters: [
     'default',

@@ -489,6 +489,27 @@ export default async function normalize(
   hasDeprecationWarnings: boolean;
   options: AllOptions;
 }> {
+  // Process plugin config hooks before validation
+  if (initialOptions.plugins && initialOptions.plugins.length > 0) {
+    for (const pluginConfig of initialOptions.plugins as Array<Config.PluginConfig>) {
+      let plugin: Config.Plugin;
+      if (typeof pluginConfig === 'function') {
+        plugin = await pluginConfig();
+      } else {
+        plugin = pluginConfig;
+      }
+
+      if (plugin.config) {
+        const modifiedConfig = await plugin.config(initialOptions, {
+          configPath: configPath ?? null,
+        });
+        if (modifiedConfig) {
+          Object.assign(initialOptions, modifiedConfig);
+        }
+      }
+    }
+  }
+
   const {hasDeprecationWarnings} = validate(initialOptions, {
     comment: DOCUMENTATION_NOTE,
     deprecatedConfig: DEPRECATED_CONFIG,
