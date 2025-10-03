@@ -153,7 +153,7 @@ export function transformPlugin(): Config.Plugin {
     name: 'jest:transform-plugin',
     transform(code, id) {
       if (id.endsWith('.custom')) {
-        return code.replace(/CUSTOM_VAR/g, '"replaced"');
+        return code.replaceAll('CUSTOM_VAR', '"replaced"');
       }
       return null;
     },

@@ -261,20 +261,32 @@ export type PluginContext = {
   globalConfig: GlobalConfig;
 };
 
-export type ResolveIdResult = {
-  id: string;
-  external?: boolean;
-} | string | null | undefined;
+export type ResolveIdResult =
+  | {
+      id: string;
+      external?: boolean;
+    }
+  | string
+  | null
+  | undefined;
 
-export type LoadResult = {
-  code: string;
-  map?: any;
-} | string | null | undefined;
+export type LoadResult =
+  | {
+      code: string;
+      map?: any;
+    }
+  | string
+  | null
+  | undefined;
 
-export type TransformPluginResult = {
-  code: string;
-  map?: any;
-} | string | null | undefined;
+export type TransformPluginResult =
+  | {
+      code: string;
+      map?: any;
+    }
+  | string
+  | null
+  | undefined;
 
 export interface Plugin {
   name: string;

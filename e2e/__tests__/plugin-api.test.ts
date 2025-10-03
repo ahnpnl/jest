@@ -9,10 +9,10 @@ import runJest from '../runJest';
 
 test('supports plugins in configuration', () => {
   const {exitCode, stderr, stdout} = runJest('plugin-api');
-  
+
   expect(exitCode).toBe(0);
   expect(stderr).toContain('PASS');
-  
+
   // Verify plugin hooks were called
   expect(stdout).toContain('Plugin config hook called with configPath:');
   expect(stdout).toContain('Plugin configResolved hook called for project:');

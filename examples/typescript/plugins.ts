@@ -10,32 +10,30 @@ import type {Config} from '@jest/types';
 // Example 1: Simple plugin
 export function simplePlugin(): Config.Plugin {
   return {
-    name: 'jest:simple-plugin',
     configureJest(context) {
       console.log('Project root:', context.config.rootDir);
     },
+    name: 'jest:simple-plugin',
   };
 }
 
 // Example 2: Plugin with config modification
 export function configModifierPlugin(): Config.Plugin {
   return {
-    name: 'jest:config-modifier',
-    enforce: 'pre',
     config(config, context) {
       return {
         ...config,
         testTimeout: config.testTimeout || 5000,
       };
     },
+    enforce: 'pre',
+    name: 'jest:config-modifier',
   };
 }
 
 // Example 3: Plugin with all hooks
 export function fullPlugin(): Config.Plugin {
   return {
-    name: 'jest:full-plugin',
-    enforce: 'post',
     config(config, context) {
       console.log('Config path:', context.configPath);
       return config;
@@ -46,18 +44,20 @@ export function fullPlugin(): Config.Plugin {
     configureJest(context) {
       console.log('CI mode:', context.globalConfig.ci);
     },
-    resolveId(source, importer, options) {
-      if (source.startsWith('virtual:')) {
-        return {id: '\0' + source, external: false};
-      }
-      return null;
-    },
+    enforce: 'post',
     load(id) {
       if (id.startsWith('\0virtual:')) {
         return {
           code: 'export default {};',
           map: null,
         };
+      }
+      return null;
+    },
+    name: 'jest:full-plugin',
+    resolveId(source, importer, options) {
+      if (source.startsWith('virtual:')) {
+        return {external: false, id: `\0${source}`};
       }
       return null;
     },

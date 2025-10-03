@@ -7,10 +7,11 @@
 
 export function myPlugin() {
   return {
-    name: 'jest:my-plugin',
-    enforce: 'pre',
     config(config, context) {
-      console.log('Plugin config hook called with configPath:', context.configPath);
+      console.log(
+        'Plugin config hook called with configPath:',
+        context.configPath,
+      );
       // Modify config before it's normalized
       return {
         ...config,
@@ -18,12 +19,17 @@ export function myPlugin() {
       };
     },
     configResolved(config) {
-      console.log('Plugin configResolved hook called for project:', config.rootDir);
+      console.log(
+        'Plugin configResolved hook called for project:',
+        config.rootDir,
+      );
     },
     configureJest(context) {
       console.log('Plugin configured with project:', context.config.rootDir);
       console.log('Global config ci mode:', context.globalConfig.ci);
     },
+    enforce: 'pre',
+    name: 'jest:my-plugin',
   };
 }
 
