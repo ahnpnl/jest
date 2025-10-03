@@ -972,6 +972,9 @@ export default async function normalize(
           }
         });
         break;
+      case 'plugins':
+        value = oldOptions[key] || [];
+        break;
     }
     // @ts-expect-error: automock is missing in GlobalConfig, so what
     newOptions[key] = value;
@@ -1173,6 +1176,21 @@ export default async function normalize(
 
   if (argv.shard) {
     newOptions.shard = parseShardPair(argv.shard);
+  }
+
+  // Process plugins
+  if (newOptions.plugins && newOptions.plugins.length > 0) {
+    const resolvedPlugins: Array<Config.Plugin> = [];
+    for (const pluginConfig of newOptions.plugins as Array<Config.PluginConfig>) {
+      let plugin: Config.Plugin;
+      if (typeof pluginConfig === 'function') {
+        plugin = await pluginConfig();
+      } else {
+        plugin = pluginConfig;
+      }
+      resolvedPlugins.push(plugin);
+    }
+    newOptions.plugins = resolvedPlugins;
   }
 
   return {
