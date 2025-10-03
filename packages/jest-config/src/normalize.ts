@@ -489,6 +489,25 @@ export default async function normalize(
   hasDeprecationWarnings: boolean;
   options: AllOptions;
 }> {
+  // Process plugin config hooks before validation
+  if (initialOptions.plugins && initialOptions.plugins.length > 0) {
+    for (const pluginConfig of initialOptions.plugins as Array<Config.JestPluginConfig>) {
+      const resolvedPlugin =
+        typeof pluginConfig === 'function'
+          ? await pluginConfig()
+          : pluginConfig;
+
+      if (resolvedPlugin.config) {
+        const modifiedConfig = await resolvedPlugin.config(initialOptions, {
+          configPath: configPath ?? null,
+        });
+        if (modifiedConfig) {
+          Object.assign(initialOptions, modifiedConfig);
+        }
+      }
+    }
+  }
+
   const {hasDeprecationWarnings} = validate(initialOptions, {
     comment: DOCUMENTATION_NOTE,
     deprecatedConfig: DEPRECATED_CONFIG,
@@ -972,6 +991,9 @@ export default async function normalize(
           }
         });
         break;
+      case 'plugins':
+        value = oldOptions[key] || [];
+        break;
     }
     // @ts-expect-error: automock is missing in GlobalConfig, so what
     newOptions[key] = value;
@@ -1173,6 +1195,19 @@ export default async function normalize(
 
   if (argv.shard) {
     newOptions.shard = parseShardPair(argv.shard);
+  }
+
+  // Process plugins
+  if (newOptions.plugins && newOptions.plugins.length > 0) {
+    const resolvedPlugins: Array<Config.JestPlugin> = [];
+    for (const pluginConfig of newOptions.plugins as Array<Config.JestPluginConfig>) {
+      const resolvedPlugin =
+        typeof pluginConfig === 'function'
+          ? await pluginConfig()
+          : pluginConfig;
+      resolvedPlugins.push(resolvedPlugin);
+    }
+    newOptions.plugins = resolvedPlugins;
   }
 
   return {
