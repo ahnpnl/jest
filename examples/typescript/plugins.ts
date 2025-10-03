@@ -8,7 +8,7 @@
 import type {Config} from '@jest/types';
 
 // Example 1: Simple plugin
-export function simplePlugin(): Config.Plugin {
+export function simplePlugin(): Config.JestPlugin {
   return {
     configureJest(context) {
       console.log('Project root:', context.config.rootDir);
@@ -18,7 +18,7 @@ export function simplePlugin(): Config.Plugin {
 }
 
 // Example 2: Plugin with config modification
-export function configModifierPlugin(): Config.Plugin {
+export function configModifierPlugin(): Config.JestPlugin {
   return {
     config(config, context) {
       return {
@@ -31,7 +31,7 @@ export function configModifierPlugin(): Config.Plugin {
 }
 
 // Example 3: Plugin with all hooks
-export function fullPlugin(): Config.Plugin {
+export function fullPlugin(): Config.JestPlugin {
   return {
     config(config, context) {
       console.log('Config path:', context.configPath);
@@ -43,22 +43,7 @@ export function fullPlugin(): Config.Plugin {
     configureJest(context) {
       console.log('CI mode:', context.globalConfig.ci);
     },
-    load(id) {
-      if (id.startsWith('\0virtual:')) {
-        return {
-          code: 'export default {};',
-          map: null,
-        };
-      }
-      return null;
-    },
     name: 'jest:full-plugin',
-    resolveId(source, importer, options) {
-      if (source.startsWith('virtual:')) {
-        return {external: false, id: `\0${source}`};
-      }
-      return null;
-    },
     transform(code, id) {
       if (id.endsWith('.custom')) {
         return {

@@ -89,7 +89,7 @@ class ScriptTransformer {
     {transformer: Transformer; transformerConfig: unknown}
   >();
   private _transformsAreLoaded = false;
-  private readonly _plugins: Array<Config.Plugin>;
+  private readonly _plugins: Array<Config.JestPlugin>;
 
   constructor(
     private readonly _config: Config.ProjectConfig,

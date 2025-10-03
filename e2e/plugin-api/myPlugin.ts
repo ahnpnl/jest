@@ -7,7 +7,7 @@
 
 import type {Config} from '@jest/types';
 
-export function myPlugin(): Config.Plugin {
+export function myPlugin(): Config.JestPlugin {
   return {
     config(config, context) {
       console.log(
@@ -34,7 +34,7 @@ export function myPlugin(): Config.Plugin {
   };
 }
 
-export function transformPlugin(): Config.Plugin {
+export function transformPlugin(): Config.JestPlugin {
   return {
     name: 'jest:transform-plugin',
     transform(code, id) {

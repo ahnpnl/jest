@@ -15,12 +15,12 @@ Jest's Plugin API allows you to extend Jest's functionality by hooking into vari
 
 ## Creating a Plugin
 
-A plugin is an object that implements the `Config.Plugin` interface. The simplest plugin needs only a name:
+A plugin is an object that implements the `Config.JestPlugin` interface. The simplest plugin needs only a name:
 
 ```typescript
 import type {Config} from 'jest';
 
-export function myPlugin(): Config.Plugin {
+export function myPlugin(): Config.JestPlugin {
   return {
     name: 'jest:my-plugin',
   };
@@ -44,7 +44,7 @@ A unique identifier for your plugin. Convention is to use a namespace prefix lik
 Called before Jest configuration is normalized. This hook allows you to modify the configuration before validation and normalization.
 
 ```typescript
-export function configPlugin(): Config.Plugin {
+export function configPlugin(): Config.JestPlugin {
   return {
     config(config, context) {
       return {
@@ -64,7 +64,7 @@ export function configPlugin(): Config.Plugin {
 Called after Jest configuration is resolved and normalized. Use this hook to react to the final configuration.
 
 ```typescript
-export function configResolvedPlugin(): Config.Plugin {
+export function configResolvedPlugin(): Config.JestPlugin {
   return {
     configResolved(config, context) {
       console.log('Running tests in:', config.rootDir);
@@ -81,55 +81,11 @@ export function configResolvedPlugin(): Config.Plugin {
 Called to configure Jest with access to both project and global configuration. This is the main hook for setting up your plugin.
 
 ```typescript
-export function configureJestPlugin(): Config.Plugin {
+export function configureJestPlugin(): Config.JestPlugin {
   return {
     configureJest(context) {
       console.log('Project root:', context.config.rootDir);
       console.log('CI mode:', context.globalConfig.ci);
-    },
-    name: 'jest:my-plugin',
-  };
-}
-```
-
-### `resolveId`
-
-**Type:** `(source: string, importer: string | undefined, options: {isEntry: boolean}) => ResolveIdResult | Promise<ResolveIdResult>`
-
-**Returns:** `{id: string; external?: boolean} | string | null | undefined`
-
-Customize module resolution. This is useful for creating virtual modules or redirecting imports.
-
-```typescript
-export function resolvePlugin(): Config.Plugin {
-  return {
-    name: 'jest:my-plugin',
-    resolveId(source, importer, options) {
-      if (source === 'virtual:config') {
-        return '\0virtual:config';
-      }
-      return null;
-    },
-  };
-}
-```
-
-### `load`
-
-**Type:** `(id: string) => LoadResult | Promise<LoadResult>`
-
-**Returns:** `{code: string; map?: any} | string | null | undefined`
-
-Load file contents. This is useful for virtual modules or custom file loading.
-
-```typescript
-export function loadPlugin(): Config.Plugin {
-  return {
-    load(id) {
-      if (id === '\0virtual:config') {
-        return 'export default { version: "1.0.0" };';
-      }
-      return null;
     },
     name: 'jest:my-plugin',
   };
@@ -145,7 +101,7 @@ export function loadPlugin(): Config.Plugin {
 Transform code before it's executed. This provides a cleaner API compared to traditional Jest transformers.
 
 ```typescript
-export function transformPlugin(): Config.Plugin {
+export function transformPlugin(): Config.JestPlugin {
   return {
     name: 'jest:transform-plugin',
     transform(code, id) {
@@ -193,7 +149,7 @@ Here's a complete example of a plugin that injects environment variables into te
 ```typescript
 import type {Config} from 'jest';
 
-export function envPlugin(envVars: Record<string, string>): Config.Plugin {
+export function envPlugin(envVars: Record<string, string>): Config.JestPlugin {
   return {
     config(config) {
       // Add environment variables to globals
@@ -238,7 +194,7 @@ The Plugin API is fully typed. Import the types from `@jest/types`:
 ```typescript
 import type {Config} from '@jest/types';
 
-export function myPlugin(): Config.Plugin {
+export function myPlugin(): Config.JestPlugin {
   // TypeScript will provide autocomplete and type checking
   return {
     name: 'jest:my-plugin',

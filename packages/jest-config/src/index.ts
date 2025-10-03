@@ -69,7 +69,7 @@ export async function readConfig(
 
   // Process plugins after config is resolved
   if (projectConfig.plugins && projectConfig.plugins.length > 0) {
-    const pluginContext: Config.PluginContext = {
+    const pluginContext: Config.JestPluginContext = {
       config: projectConfig,
       globalConfig,
     };

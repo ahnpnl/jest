@@ -1193,7 +1193,7 @@ This is an experimental feature and the API may change in future releases.
 
 :::
 
-An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, customize module resolution, transform code, and more. This API is inspired by Vite and Vitest plugin systems.
+An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, transform code, and more. This API is inspired by Vite and Vitest plugin systems.
 
 Each plugin is an object or a function that returns an object with the following optional methods:
 
@@ -1201,8 +1201,6 @@ Each plugin is an object or a function that returns an object with the following
 - `config`: Modify Jest configuration before it's normalized
 - `configResolved`: React to the resolved configuration
 - `configureJest`: Configure Jest with access to both project and global config
-- `resolveId`: Control module resolution
-- `load`: Load file contents (useful for virtual modules)
 - `transform`: Transform code before it's executed
 
 ```js tab

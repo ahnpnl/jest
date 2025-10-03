@@ -10,6 +10,7 @@ import type {ReportOptions} from 'istanbul-reports';
 import type {Arguments} from 'yargs';
 import type {TestPathPatterns} from '@jest/pattern';
 import type {InitialOptions, SnapshotFormat} from '@jest/schemas';
+import type * as TransformTypes from './Transform';
 
 export type {InitialOptions} from '@jest/schemas';
 
@@ -254,37 +255,10 @@ type ShardConfig = {
   shardCount: number;
 };
 
-export type PluginContext = {
+export type JestPluginContext = {
   config: ProjectConfig;
   globalConfig: GlobalConfig;
 };
-
-export type ResolveIdResult =
-  | {
-      id: string;
-      external?: boolean;
-    }
-  | string
-  | null
-  | undefined;
-
-export type LoadResult =
-  | {
-      code: string;
-      map?: any;
-    }
-  | string
-  | null
-  | undefined;
-
-export type TransformPluginResult =
-  | {
-      code: string;
-      map?: any;
-    }
-  | string
-  | null
-  | undefined;
 
 export interface JestPlugin {
   name: string;
@@ -294,25 +268,21 @@ export interface JestPlugin {
   ) => InitialOptions | Promise<InitialOptions> | void | Promise<void>;
   configResolved?: (
     config: ProjectConfig,
-    context: PluginContext,
+    context: JestPluginContext,
   ) => void | Promise<void>;
-  configureJest?: (context: PluginContext) => void | Promise<void>;
-  resolveId?: (
-    source: string,
-    importer: string | undefined,
-    options: {isEntry: boolean},
-  ) => ResolveIdResult | Promise<ResolveIdResult>;
-  load?: (id: string) => LoadResult | Promise<LoadResult>;
+  configureJest?: (context: JestPluginContext) => void | Promise<void>;
   transform?: (
     code: string,
     id: string,
-  ) => TransformPluginResult | Promise<TransformPluginResult>;
+  ) =>
+    | TransformTypes.TransformResult
+    | string
+    | null
+    | undefined
+    | Promise<TransformTypes.TransformResult | string | null | undefined>;
 }
 
-// Alias for backward compatibility
-export type Plugin = JestPlugin;
-
-export type PluginConfig =
+export type JestPluginConfig =
   | JestPlugin
   | (() => JestPlugin)
   | (() => Promise<JestPlugin>);
@@ -421,7 +391,7 @@ export type ProjectConfig = {
   modulePaths?: Array<string>;
   openHandlesTimeout: number;
   preset?: string;
-  plugins?: Array<Plugin>;
+  plugins?: Array<JestPlugin>;
   prettierPath: string;
   reporters: Array<string | ReporterConfig>;
   resetMocks: boolean;

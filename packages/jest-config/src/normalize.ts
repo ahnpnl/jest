@@ -491,7 +491,7 @@ export default async function normalize(
 }> {
   // Process plugin config hooks before validation
   if (initialOptions.plugins && initialOptions.plugins.length > 0) {
-    for (const pluginConfig of initialOptions.plugins as Array<Config.PluginConfig>) {
+    for (const pluginConfig of initialOptions.plugins as Array<Config.JestPluginConfig>) {
       const resolvedPlugin =
         typeof pluginConfig === 'function'
           ? await pluginConfig()
@@ -1199,8 +1199,8 @@ export default async function normalize(
 
   // Process plugins
   if (newOptions.plugins && newOptions.plugins.length > 0) {
-    const resolvedPlugins: Array<Config.Plugin> = [];
-    for (const pluginConfig of newOptions.plugins as Array<Config.PluginConfig>) {
+    const resolvedPlugins: Array<Config.JestPlugin> = [];
+    for (const pluginConfig of newOptions.plugins as Array<Config.JestPluginConfig>) {
       const resolvedPlugin =
         typeof pluginConfig === 'function'
           ? await pluginConfig()
