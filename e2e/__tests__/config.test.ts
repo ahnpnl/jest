@@ -75,3 +75,39 @@ test('negated flags override previous flags', () => {
 
   expect(globalConfig.silent).toBe(true);
 });
+
+test('should work with define config function and config object input', () => {
+  const result = runJest('config-utils', [
+    '--config=jest.config.ts',
+    '__tests__/simple.test.js',
+  ]);
+
+  expect(result.exitCode).toBe(0);
+});
+
+test('should work with define config function and config callback input', () => {
+  const result = runJest('config-utils', [
+    '--config=jest.config.callback.ts',
+    '__tests__/simple.test.js',
+  ]);
+
+  expect(result.exitCode).toBe(0);
+});
+
+test('should work with define config function and async config callback input', () => {
+  const result = runJest('config-utils', [
+    '--config=jest.config.async-callback.ts',
+    '__tests__/simple.test.js',
+  ]);
+
+  expect(result.exitCode).toBe(0);
+});
+
+test('should work with merging 2 configs', () => {
+  const result = runJest('config-utils', [
+    '--config=jest.config.merge.ts',
+    '__tests__/merge.test.js',
+  ]);
+
+  expect(result.exitCode).toBe(0);
+});
