@@ -5,6 +5,12 @@ title: Plugin API
 
 # Plugin API
 
+:::warning
+
+This is an experimental feature and the API may change in future releases.
+
+:::
+
 Jest's Plugin API allows you to extend Jest's functionality by hooking into various stages of the test execution lifecycle. This API is inspired by [Vite](https://vite.dev/guide/api-plugin.html) and [Vitest](https://vitest.dev/advanced/api/plugin) plugin systems.
 
 ## Creating a Plugin
@@ -49,13 +55,13 @@ Called before Jest configuration is normalized. This hook allows you to modify t
 ```typescript
 export function configPlugin(): Config.Plugin {
   return {
-    name: 'jest:config-plugin',
     config(config, context) {
       return {
         ...config,
         testTimeout: config.testTimeout || 10000,
       };
     },
+    name: 'jest:my-plugin',
   };
 }
 ```
@@ -69,10 +75,10 @@ Called after Jest configuration is resolved and normalized. Use this hook to rea
 ```typescript
 export function configResolvedPlugin(): Config.Plugin {
   return {
-    name: 'jest:config-resolved-plugin',
     configResolved(config, context) {
       console.log('Running tests in:', config.rootDir);
     },
+    name: 'jest:my-plugin',
   };
 }
 ```
@@ -86,11 +92,11 @@ Called to configure Jest with access to both project and global configuration. T
 ```typescript
 export function configureJestPlugin(): Config.Plugin {
   return {
-    name: 'jest:configure-plugin',
     configureJest(context) {
       console.log('Project root:', context.config.rootDir);
       console.log('CI mode:', context.globalConfig.ci);
     },
+    name: 'jest:my-plugin',
   };
 }
 ```
@@ -106,7 +112,7 @@ Customize module resolution. This is useful for creating virtual modules or redi
 ```typescript
 export function resolvePlugin(): Config.Plugin {
   return {
-    name: 'jest:resolve-plugin',
+    name: 'jest:my-plugin',
     resolveId(source, importer, options) {
       if (source === 'virtual:config') {
         return '\0virtual:config';
@@ -128,13 +134,13 @@ Load file contents. This is useful for virtual modules or custom file loading.
 ```typescript
 export function loadPlugin(): Config.Plugin {
   return {
-    name: 'jest:load-plugin',
     load(id) {
       if (id === '\0virtual:config') {
         return 'export default { version: "1.0.0" };';
       }
       return null;
     },
+    name: 'jest:my-plugin',
   };
 }
 ```

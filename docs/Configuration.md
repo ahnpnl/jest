@@ -1187,6 +1187,12 @@ If you also have specified [`rootDir`](#rootdir-string), the resolution of this 
 
 Default: `[]`
 
+:::warning
+
+This is an experimental feature and the API may change in future releases.
+
+:::
+
 An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, customize module resolution, transform code, and more. This API is inspired by Vite and Vitest plugin systems.
 
 Each plugin is an object or a function that returns an object with the following optional methods:

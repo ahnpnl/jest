@@ -288,7 +288,7 @@ export type TransformPluginResult =
   | null
   | undefined;
 
-export interface Plugin {
+export interface JestPlugin {
   name: string;
   enforce?: PluginEnforce;
   config?: (
@@ -312,7 +312,13 @@ export interface Plugin {
   ) => TransformPluginResult | Promise<TransformPluginResult>;
 }
 
-export type PluginConfig = Plugin | (() => Plugin) | (() => Promise<Plugin>);
+// Alias for backward compatibility
+export type Plugin = JestPlugin;
+
+export type PluginConfig =
+  | JestPlugin
+  | (() => JestPlugin)
+  | (() => Promise<JestPlugin>);
 
 export type GlobalConfig = {
   bail: number;

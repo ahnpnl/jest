@@ -492,15 +492,13 @@ export default async function normalize(
   // Process plugin config hooks before validation
   if (initialOptions.plugins && initialOptions.plugins.length > 0) {
     for (const pluginConfig of initialOptions.plugins as Array<Config.PluginConfig>) {
-      let plugin: Config.Plugin;
-      if (typeof pluginConfig === 'function') {
-        plugin = await pluginConfig();
-      } else {
-        plugin = pluginConfig;
-      }
+      const resolvedPlugin =
+        typeof pluginConfig === 'function'
+          ? await pluginConfig()
+          : pluginConfig;
 
-      if (plugin.config) {
-        const modifiedConfig = await plugin.config(initialOptions, {
+      if (resolvedPlugin.config) {
+        const modifiedConfig = await resolvedPlugin.config(initialOptions, {
           configPath: configPath ?? null,
         });
         if (modifiedConfig) {
@@ -1203,13 +1201,11 @@ export default async function normalize(
   if (newOptions.plugins && newOptions.plugins.length > 0) {
     const resolvedPlugins: Array<Config.Plugin> = [];
     for (const pluginConfig of newOptions.plugins as Array<Config.PluginConfig>) {
-      let plugin: Config.Plugin;
-      if (typeof pluginConfig === 'function') {
-        plugin = await pluginConfig();
-      } else {
-        plugin = pluginConfig;
-      }
-      resolvedPlugins.push(plugin);
+      const resolvedPlugin =
+        typeof pluginConfig === 'function'
+          ? await pluginConfig()
+          : pluginConfig;
+      resolvedPlugins.push(resolvedPlugin);
     }
     newOptions.plugins = resolvedPlugins;
   }
