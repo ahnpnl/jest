@@ -254,6 +254,54 @@ type ShardConfig = {
   shardCount: number;
 };
 
+export type PluginEnforce = 'pre' | 'post';
+
+export type PluginContext = {
+  config: ProjectConfig;
+  globalConfig: GlobalConfig;
+};
+
+export type ResolveIdResult = {
+  id: string;
+  external?: boolean;
+} | string | null | undefined;
+
+export type LoadResult = {
+  code: string;
+  map?: any;
+} | string | null | undefined;
+
+export type TransformPluginResult = {
+  code: string;
+  map?: any;
+} | string | null | undefined;
+
+export interface Plugin {
+  name: string;
+  enforce?: PluginEnforce;
+  config?: (
+    config: InitialOptions,
+    context: {configPath: string | null},
+  ) => InitialOptions | Promise<InitialOptions> | void | Promise<void>;
+  configResolved?: (
+    config: ProjectConfig,
+    context: PluginContext,
+  ) => void | Promise<void>;
+  configureJest?: (context: PluginContext) => void | Promise<void>;
+  resolveId?: (
+    source: string,
+    importer: string | undefined,
+    options: {isEntry: boolean},
+  ) => ResolveIdResult | Promise<ResolveIdResult>;
+  load?: (id: string) => LoadResult | Promise<LoadResult>;
+  transform?: (
+    code: string,
+    id: string,
+  ) => TransformPluginResult | Promise<TransformPluginResult>;
+}
+
+export type PluginConfig = Plugin | (() => Plugin) | (() => Promise<Plugin>);
+
 export type GlobalConfig = {
   bail: number;
   changedSince?: string;
@@ -358,6 +406,7 @@ export type ProjectConfig = {
   modulePaths?: Array<string>;
   openHandlesTimeout: number;
   preset?: string;
+  plugins?: Array<Plugin>;
   prettierPath: string;
   reporters: Array<string | ReporterConfig>;
   resetMocks: boolean;
