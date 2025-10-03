@@ -118,11 +118,11 @@ export function transformPlugin(): Config.JestPlugin {
 
 The Plugin API unifies Jest's watch plugin functionality, allowing plugins to provide interactive watch mode features alongside configuration and transformation capabilities.
 
-#### `apply`
+#### `subscribeToWatchMode`
 
 **Type:** `(hooks: JestPluginHookSubscriber) => void`
 
-Hook into Jest's watch mode lifecycle events. The `hooks` object provides:
+Subscribe to Jest's watch mode lifecycle events. The `hooks` object provides:
 
 - `onFileChange(fn)` - Called when files change
 - `onTestRunComplete(fn)` - Called after each test run
@@ -131,7 +131,8 @@ Hook into Jest's watch mode lifecycle events. The `hooks` object provides:
 ```typescript
 export function watchPlugin(): Config.JestPlugin {
   return {
-    apply(jestHooks) {
+    name: 'jest:watch-plugin',
+    subscribeToWatchMode(jestHooks) {
       jestHooks.onTestRunComplete(results => {
         console.log('Tests completed:', results.numPassedTests);
       });
@@ -140,7 +141,6 @@ export function watchPlugin(): Config.JestPlugin {
         return testInfo.testPath.includes('important');
       });
     },
-    name: 'jest:watch-plugin',
   };
 }
 ```
@@ -165,7 +165,7 @@ export function interactivePlugin(): Config.JestPlugin {
 }
 ```
 
-#### `run`
+#### `executeInteractiveAction`
 
 **Type:** `(globalConfig: GlobalConfig, updateConfigAndRun: UpdateConfigCallback) => Promise<void | boolean>`
 
@@ -174,11 +174,11 @@ Called when the user presses the key defined in `getUsageInfo`. Use `updateConfi
 ```typescript
 export function customRunPlugin(): Config.JestPlugin {
   return {
+    name: 'jest:custom-run-plugin',
     getUsageInfo() {
       return {key: 't', prompt: 'run only tests with TODO'};
     },
-    name: 'jest:custom-run-plugin',
-    run(globalConfig, updateConfigAndRun) {
+    executeInteractiveAction(globalConfig, updateConfigAndRun) {
       updateConfigAndRun({
         testNamePattern: 'TODO',
       });
@@ -214,7 +214,10 @@ Existing watch plugins can be migrated to the unified Plugin API by:
 
 1. Changing `watchPlugins` to `plugins` in your configuration
 2. Adding a `name` field to your plugin
-3. The `apply`, `getUsageInfo`, `run`, and `onKey` hooks work identically
+3. Renaming hook methods:
+   - `apply` → `subscribeToWatchMode`
+   - `run` → `executeInteractiveAction`
+   - `getUsageInfo` and `onKey` remain the same
 
 **Before:**
 ```javascript
@@ -242,9 +245,9 @@ module.exports = {
 export function myPlugin() {
   return {
     name: 'jest:my-plugin',
-    apply(jestHooks) { /* ... */ },
+    subscribeToWatchMode(jestHooks) { /* ... */ },
     getUsageInfo() { /* ... */ },
-    run() { /* ... */ },
+    executeInteractiveAction() { /* ... */ },
   };
 }
 ```

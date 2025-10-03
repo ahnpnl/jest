@@ -3,7 +3,7 @@ import type {Config} from '@jest/types';
 export function watchModePlugin(): Config.JestPlugin {
   return {
     name: 'jest:watch-mode-plugin',
-    apply(hooks) {
+    subscribeToWatchMode(hooks) {
       hooks.onTestRunComplete(results => {
         console.log(`Watch plugin: ${results.numPassedTests} tests passed`);
       });
@@ -14,7 +14,7 @@ export function watchModePlugin(): Config.JestPlugin {
         prompt: 'watch mode plugin action',
       };
     },
-    run(globalConfig, updateConfigAndRun) {
+    executeInteractiveAction(globalConfig, updateConfigAndRun) {
       console.log('Watch plugin action triggered');
       return Promise.resolve();
     },
