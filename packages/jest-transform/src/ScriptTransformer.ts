@@ -179,6 +179,10 @@ class ScriptTransformer {
     return transformedCode;
   }
 
+  private _hasPluginTransforms(): boolean {
+    return this._plugins.some(plugin => plugin.transform);
+  }
+
   private _buildCacheKeyFromFileInfo(
     fileData: string,
     filename: string,
@@ -585,7 +589,11 @@ class ScriptTransformer {
       );
     }
 
-    if (transformer && this.shouldTransform(filename)) {
+    // Prioritize plugins with transform hooks over regular transformers
+    if (this._hasPluginTransforms()) {
+      // If plugins have transforms, create a processed result
+      processed = {code: currentContent, map: null};
+    } else if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
 
       assertSyncTransformer(transformer, this._getTransformPath(filename));
@@ -597,9 +605,6 @@ class ScriptTransformer {
         configString: this._cache.configString,
         transformerConfig,
       });
-    } else if (this._plugins.length > 0) {
-      // If no transformer but we have plugins, create a processed result
-      processed = {code: currentContent, map: null};
     }
 
     // Apply 'post' plugin transforms after regular transformers
@@ -678,7 +683,11 @@ class ScriptTransformer {
       );
     }
 
-    if (transformer && this.shouldTransform(filename)) {
+    // Prioritize plugins with transform hooks over regular transformers
+    if (this._hasPluginTransforms()) {
+      // If plugins have transforms, create a processed result
+      processed = {code: currentContent, map: null};
+    } else if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
       const process = transformer.processAsync ?? transformer.process;
 
@@ -695,9 +704,6 @@ class ScriptTransformer {
         configString: this._cache.configString,
         transformerConfig,
       });
-    } else if (this._plugins.length > 0) {
-      // If no transformer but we have plugins, create a processed result
-      processed = {code: currentContent, map: null};
     }
 
     // Apply 'post' plugin transforms after regular transformers
