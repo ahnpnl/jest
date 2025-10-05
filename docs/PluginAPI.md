@@ -118,11 +118,11 @@ export function transformPlugin(): Config.JestPlugin {
 
 The Plugin API unifies Jest's watch plugin functionality, allowing plugins to provide interactive watch mode features alongside configuration and transformation capabilities.
 
-#### `onWatchEvents`
+#### `registerWatchEventsHandler`
 
 **Type:** `(hooks: JestPluginHookSubscriber) => void`
 
-Subscribe to Jest's watch mode lifecycle events. The `hooks` object provides:
+Register handlers for Jest's watch mode lifecycle events. The `hooks` object provides:
 
 - `onFileChange(fn)` - Called when files change
 - `onTestRunComplete(fn)` - Called after each test run
@@ -132,7 +132,7 @@ Subscribe to Jest's watch mode lifecycle events. The `hooks` object provides:
 export function watchPlugin(): Config.JestPlugin {
   return {
     name: 'jest:watch-plugin',
-    onWatchEvents(jestHooks) {
+    registerWatchEventsHandler(jestHooks) {
       jestHooks.onTestRunComplete(results => {
         console.log('Tests completed:', results.numPassedTests);
       });
@@ -215,7 +215,7 @@ Existing watch plugins can be migrated to the unified Plugin API by:
 1. Changing `watchPlugins` to `plugins` in your configuration
 2. Adding a `name` field to your plugin
 3. Renaming hook methods:
-   - `apply` → `onWatchEvents`
+   - `apply` → `registerWatchEventsHandler`
    - `getUsageInfo` → `defineWatchMenu`
    - `run` → `onWatchMenuInteracted`
    - `onKey` remains the same
@@ -246,7 +246,7 @@ module.exports = {
 export function myPlugin() {
   return {
     name: 'jest:my-plugin',
-    onWatchEvents(jestHooks) { /* ... */ },
+    registerWatchEventsHandler(jestHooks) { /* ... */ },
     defineWatchMenu() { /* ... */ },
     onWatchMenuInteracted() { /* ... */ },
   };

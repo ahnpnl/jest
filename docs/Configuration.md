@@ -1202,7 +1202,7 @@ Each plugin is an object or a function that returns an object with the following
 - `configResolved`: React to the resolved configuration
 - `configureJest`: Configure Jest with access to both project and global config
 - `transform`: Transform code before it's executed
-- `onWatchEvents`: Subscribe to watch mode lifecycle events (migrated from watch plugin `apply`)
+- `registerWatchEventsHandler`: Register handlers for watch mode lifecycle events (migrated from watch plugin `apply`)
 - `defineWatchMenu`: Define interactive watch mode key bindings (migrated from watch plugin `getUsageInfo`)
 - `onWatchMenuInteracted`: Execute custom actions in watch mode (migrated from watch plugin `run`)
 - `onKey`: Handle key presses in watch mode (same as watch plugin `onKey`)
