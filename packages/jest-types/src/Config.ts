@@ -285,10 +285,10 @@ export interface JestPlugin {
   // Watch mode hooks (unified from WatchPlugin interface)
   // These hooks are available for plugins that need watch mode functionality
   isInternal?: boolean;
-  subscribeToWatchMode?: (hooks: JestPluginHookSubscriber) => void;
-  getUsageInfo?: (globalConfig: GlobalConfig) => JestPluginUsageData | null;
+  onWatchEvents?: (hooks: JestPluginHookSubscriber) => void;
+  defineWatchMenu?: (globalConfig: GlobalConfig) => JestPluginUsageData | null;
   onKey?: (value: string) => void;
-  executeInteractiveAction?: (
+  onWatchMenuInteracted?: (
     globalConfig: GlobalConfig,
     updateConfigAndRun: JestPluginUpdateConfigCallback,
   ) => Promise<void | boolean>;
