@@ -1578,18 +1578,20 @@ constructor(
 An example of a custom runtime that extends the default Runtime to add custom behavior:
 
 ```js title="custom-runtime.js"
-const JestRuntime = require('jest-runtime');
+const {default: Runtime} = require('jest-runtime');
 
-class CustomRuntime extends JestRuntime {
+class CustomRuntime extends Runtime {
   constructor(...args) {
     super(...args);
     // Custom initialization logic
-    console.log('Using custom runtime for:', args[6]); // testPath
+    const testPath = args[6];
+    console.log('Custom Runtime: Initializing for test file:', testPath);
   }
 
-  // Override or extend methods as needed
+  // Override or extend Runtime methods as needed
   requireModule(from, moduleName, options, isRequireActual) {
-    console.log('Requiring module:', moduleName);
+    // Add custom module resolution logic
+    console.log('Custom Runtime: Loading module:', moduleName);
     return super.requireModule(from, moduleName, options, isRequireActual);
   }
 }
