@@ -1579,6 +1579,75 @@ By default, `roots` has a single entry `<rootDir>` but there are cases where you
 
 :::
 
+### `runtime` \[string]
+
+Default: `"jest-runtime"`
+
+This option allows the use of a custom runtime to execute test files. A custom runtime can be provided by specifying a path to a runtime implementation.
+
+The runtime module must export a class that extends Jest's default `Runtime` class or implements a compatible interface with the same constructor signature and methods.
+
+The Runtime class constructor has the following signature:
+
+```ts
+constructor(
+  config: ProjectConfig,
+  environment: JestEnvironment,
+  resolver: Resolver,
+  transformer: ScriptTransformer,
+  cacheFS: Map<string, string>,
+  coverageOptions: ShouldInstrumentOptions,
+  testPath: string,
+  globalConfig: GlobalConfig,
+)
+```
+
+An example of a custom runtime that extends the default Runtime to add custom behavior:
+
+```js title="custom-runtime.js"
+const JestRuntime = require('jest-runtime');
+
+class CustomRuntime extends JestRuntime {
+  constructor(...args) {
+    super(...args);
+    // Custom initialization logic
+    console.log('Using custom runtime for:', args[6]); // testPath
+  }
+
+  // Override or extend methods as needed
+  requireModule(from, moduleName, options, isRequireActual) {
+    console.log('Requiring module:', moduleName);
+    return super.requireModule(from, moduleName, options, isRequireActual);
+  }
+}
+
+module.exports = CustomRuntime;
+```
+
+Add the custom runtime to your Jest configuration:
+
+```js tab title="jest.config.js"
+const {defineConfig} = require('jest');
+
+module.exports = defineConfig({
+  runtime: './custom-runtime.js',
+});
+```
+
+```ts tab title="jest.config.ts"
+import {defineConfig} from 'jest';
+
+export default defineConfig({
+  runtime: './custom-runtime.js',
+});
+```
+
+:::warning
+
+Creating a custom runtime is an advanced use case. Most users should not need to customize the runtime. Consider whether your use case might be better addressed with custom [transformers](Configuration.md#transform-objectstring-pathtotransformer--pathtotransformer-object), [test environments](Configuration.md#testenvironment-string), or [module mocks](ManualMocks.md).
+
+:::
+
 ### `runner` \[string]
 
 Default: `"jest-runner"`
