@@ -36,11 +36,15 @@ export default abstract class BaseJSDOMEnvironment
   dom: jsdom.JSDOM | null;
   fakeTimers: LegacyFakeTimers<number> | null;
   fakeTimersModern: ModernFakeTimers | null;
-  global: Win;
   private errorEventListener: ((event: Event & {error: Error}) => void) | null;
   moduleMocker: ModuleMocker | null;
   customExportConditions = ['browser'];
   private readonly _configuredExportConditions?: Array<string>;
+  private _global: Win;
+
+  get global(): Win {
+    return this._global;
+  }
 
   protected constructor(
     config: JestEnvironmentConfig,
@@ -94,22 +98,17 @@ export default abstract class BaseJSDOMEnvironment
         ...projectConfig.testEnvironmentOptions,
       },
     );
-    const global = (this.global = this.dom.window as unknown as Win);
+    const jsdomWindow = this.dom.window as unknown as Win;
 
-    if (global == null) {
-      throw new Error('JSDOM did not return a Window object');
-    }
-
-    // TODO: remove at some point - for "universal" code (code should use `globalThis`)
-    global.global = global;
+    globalThis.global = jsdomWindow;
 
     // Node's error-message stack size is limited at 10, but it's pretty useful
     // to see more than that when a test fails.
-    this.global.Error.stackTraceLimit = 100;
-    installCommonGlobals(global, projectConfig.globals);
+    jsdomWindow.Error.stackTraceLimit = 100;
+    installCommonGlobals(jsdomWindow, projectConfig.globals);
 
     // TODO: remove this ASAP, but it currently causes tests to run really slow
-    global.Buffer = Buffer;
+    jsdomWindow.Buffer = Buffer;
 
     // Report uncaught errors.
     this.errorEventListener = event => {
@@ -117,14 +116,15 @@ export default abstract class BaseJSDOMEnvironment
         process.emit('uncaughtException', event.error);
       }
     };
-    global.addEventListener('error', this.errorEventListener);
+    jsdomWindow.addEventListener('error', this.errorEventListener);
 
     // However, don't report them as uncaught if the user listens to 'error' event.
     // In that case, we assume the might have custom error handling logic.
-    const originalAddListener = global.addEventListener.bind(global);
-    const originalRemoveListener = global.removeEventListener.bind(global);
+    const originalAddListener = jsdomWindow.addEventListener.bind(jsdomWindow);
+    const originalRemoveListener =
+      jsdomWindow.removeEventListener.bind(jsdomWindow);
     let userErrorListenerCount = 0;
-    global.addEventListener = function (
+    jsdomWindow.addEventListener = function (
       ...args: Parameters<typeof originalAddListener>
     ) {
       if (args[0] === 'error') {
@@ -132,7 +132,7 @@ export default abstract class BaseJSDOMEnvironment
       }
       return originalAddListener.apply(this, args);
     };
-    global.removeEventListener = function (
+    jsdomWindow.removeEventListener = function (
       ...args: Parameters<typeof originalRemoveListener>
     ) {
       if (args[0] === 'error') {
@@ -155,11 +155,11 @@ export default abstract class BaseJSDOMEnvironment
       }
     }
 
-    this.moduleMocker = new ModuleMocker(global);
+    this.moduleMocker = new ModuleMocker(jsdomWindow);
 
     this.fakeTimers = new LegacyFakeTimers({
       config: projectConfig,
-      global: global as unknown as typeof globalThis,
+      global: jsdomWindow,
       moduleMocker: this.moduleMocker,
       timerConfig: {
         idToRef: (id: number) => id,
@@ -169,8 +169,10 @@ export default abstract class BaseJSDOMEnvironment
 
     this.fakeTimersModern = new ModernFakeTimers({
       config: projectConfig,
-      global: global as unknown as typeof globalThis,
+      global: jsdomWindow,
     });
+
+    this._global = jsdomWindow;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -191,7 +193,7 @@ export default abstract class BaseJSDOMEnvironment
     }
     this.errorEventListener = null;
     // @ts-expect-error: this.global not allowed to be `null`
-    this.global = null;
+    this._global = null;
     this.dom = null;
     this.fakeTimers = null;
     this.fakeTimersModern = null;

@@ -62,4 +62,36 @@ describe('JSDomEnvironment abstract', () => {
 
     expect(env.dom).toBeDefined();
   });
+
+  it('should set globalThis to the JSDOM window object', () => {
+    Object.defineProperty(jsdomModule.VirtualConsole.prototype, 'forwardTo', {
+      value: jest.fn(),
+      writable: true,
+    });
+    const env = new CustomJSDOMEnvironment(
+      {
+        globalConfig: makeGlobalConfig(),
+        projectConfig: makeProjectConfig(),
+      },
+      {console, docblockPragmas: {}, testPath: __filename},
+    );
+
+    expect(env.global.globalThis).toBe(env.global);
+  });
+
+  it('should set global.global for backwards compatibility', () => {
+    Object.defineProperty(jsdomModule.VirtualConsole.prototype, 'forwardTo', {
+      value: jest.fn(),
+      writable: true,
+    });
+    const env = new CustomJSDOMEnvironment(
+      {
+        globalConfig: makeGlobalConfig(),
+        projectConfig: makeProjectConfig(),
+      },
+      {console, docblockPragmas: {}, testPath: __filename},
+    );
+
+    expect(env.global.global).toBe(env.global);
+  });
 });
