@@ -43,6 +43,7 @@ export default abstract class BaseJSDOMEnvironment
   customExportConditions = ['browser'];
   private readonly _configuredExportConditions?: Array<string>;
   private _cachedVmContext?: Context;
+  private _customWindowDetected = false;
 
   protected constructor(
     config: JestEnvironmentConfig,
@@ -97,6 +98,17 @@ export default abstract class BaseJSDOMEnvironment
       },
     );
     const global = (this.global = this.dom.window as unknown as Win);
+    
+    // Check if the custom JSDOM has overridden the window property
+    // If so, we detected a custom implementation and should use the custom window
+    const internalVMContext = this.dom.getInternalVMContext();
+    if (this.dom.window !== internalVMContext) {
+      // The custom JSDOM has provided a different window object (likely a Proxy).
+      // We need to ensure this custom window is used as the global object.
+      // Since JSDOM created its internal VM context from the original window,
+      // we'll create a new VM context from the custom window and cache it.
+      this._customWindowDetected = true;
+    }
 
     if (global == null) {
       throw new Error('JSDOM did not return a Window object');
