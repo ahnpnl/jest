@@ -6,6 +6,7 @@
  */
 
 import type {Context} from 'vm';
+import {createContext} from 'vm';
 import type * as jsdom from 'jsdom';
 import type {
   EnvironmentContext,
@@ -203,7 +204,14 @@ export default abstract class BaseJSDOMEnvironment
 
   getVmContext(): Context | null {
     if (this.dom) {
-      return this.dom.getInternalVMContext();
+      const internalContext = this.dom.getInternalVMContext();
+      // If the custom JSDOM instance has overridden the window property
+      // (e.g., with a Proxy), we need to create a new VM context from it
+      // so that code running in the context sees the custom window
+      if (this.dom.window !== internalContext) {
+        return createContext(this.dom.window);
+      }
+      return internalContext;
     }
     return null;
   }
