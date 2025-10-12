@@ -112,8 +112,36 @@ export default abstract class BaseJSDOMEnvironment
       writable: true,
     });
 
-    // TODO: remove at some point - for backwards compatibility with code using `global`
-    jsdomWindow.global = jsdomWindow;
+    // Deprecated: for backwards compatibility with code using `global`
+    // Use `globalThis` instead - `global.global` will be removed in a future major version
+    let globalDeprecationWarned = false;
+    Object.defineProperty(jsdomWindow, 'global', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        if (!globalDeprecationWarned) {
+          globalDeprecationWarned = true;
+          const warning =
+            'Accessing `global` is deprecated and will be removed in a future version of Jest. ' +
+            'Please use `globalThis` instead.';
+          if (typeof process !== 'undefined' && process.emitWarning) {
+            process.emitWarning(warning, 'DeprecationWarning');
+          } else {
+            console.warn(warning);
+          }
+        }
+        return jsdomWindow;
+      },
+      set(value) {
+        // Allow setting for backwards compatibility but don't warn on set
+        Object.defineProperty(jsdomWindow, 'global', {
+          configurable: true,
+          enumerable: true,
+          value,
+          writable: true,
+        });
+      },
+    });
 
     // Node's error-message stack size is limited at 10, but it's pretty useful
     // to see more than that when a test fails.

@@ -84,6 +84,10 @@ describe('JSDomEnvironment abstract', () => {
       value: jest.fn(),
       writable: true,
     });
+
+    // Spy on process.emitWarning to capture deprecation warning
+    const emitWarningSpy = jest.spyOn(process, 'emitWarning');
+
     const env = new CustomJSDOMEnvironment(
       {
         globalConfig: makeGlobalConfig(),
@@ -93,5 +97,40 @@ describe('JSDomEnvironment abstract', () => {
     );
 
     expect(env.global.global).toBe(env.global);
+
+    // Verify deprecation warning was emitted
+    expect(emitWarningSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Accessing `global` is deprecated'),
+      'DeprecationWarning',
+    );
+
+    emitWarningSpy.mockRestore();
+  });
+
+  it('should emit deprecation warning only once for global.global', () => {
+    Object.defineProperty(jsdomModule.VirtualConsole.prototype, 'forwardTo', {
+      value: jest.fn(),
+      writable: true,
+    });
+
+    const emitWarningSpy = jest.spyOn(process, 'emitWarning');
+
+    const env = new CustomJSDOMEnvironment(
+      {
+        globalConfig: makeGlobalConfig(),
+        projectConfig: makeProjectConfig(),
+      },
+      {console, docblockPragmas: {}, testPath: __filename},
+    );
+
+    // Access global multiple times
+    void env.global.global;
+    void env.global.global;
+    void env.global.global;
+
+    // Warning should only be emitted once
+    expect(emitWarningSpy).toHaveBeenCalledTimes(1);
+
+    emitWarningSpy.mockRestore();
   });
 });
