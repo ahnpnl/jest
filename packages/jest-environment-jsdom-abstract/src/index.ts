@@ -100,7 +100,20 @@ export default abstract class BaseJSDOMEnvironment
     );
     const jsdomWindow = this.dom.window as unknown as Win;
 
-    globalThis.global = jsdomWindow;
+    if (jsdomWindow == null) {
+      throw new Error('JSDOM did not return a Window object');
+    }
+
+    // For "universal" code (code should use `globalThis`)
+    Object.defineProperty(jsdomWindow, 'globalThis', {
+      configurable: true,
+      enumerable: false,
+      value: jsdomWindow,
+      writable: true,
+    });
+
+    // TODO: remove at some point - for backwards compatibility with code using `global`
+    jsdomWindow.global = jsdomWindow;
 
     // Node's error-message stack size is limited at 10, but it's pretty useful
     // to see more than that when a test fails.
