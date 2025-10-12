@@ -42,6 +42,7 @@ export default abstract class BaseJSDOMEnvironment
   moduleMocker: ModuleMocker | null;
   customExportConditions = ['browser'];
   private readonly _configuredExportConditions?: Array<string>;
+  private _cachedVmContext?: Context;
 
   protected constructor(
     config: JestEnvironmentConfig,
@@ -204,12 +205,17 @@ export default abstract class BaseJSDOMEnvironment
 
   getVmContext(): Context | null {
     if (this.dom) {
+      if (this._cachedVmContext) {
+        return this._cachedVmContext;
+      }
+      
       const internalContext = this.dom.getInternalVMContext();
       // If the custom JSDOM instance has overridden the window property
       // (e.g., with a Proxy), we need to create a new VM context from it
       // so that code running in the context sees the custom window
       if (this.dom.window !== internalContext) {
-        return createContext(this.dom.window);
+        this._cachedVmContext = createContext(this.dom.window);
+        return this._cachedVmContext;
       }
       return internalContext;
     }
