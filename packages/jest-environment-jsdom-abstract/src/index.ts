@@ -5,8 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import type {Context} from 'vm';
-import {createContext} from 'vm';
+import {type Context, createContext} from 'vm';
 import type * as jsdom from 'jsdom';
 import type {
   EnvironmentContext,
@@ -98,7 +97,7 @@ export default abstract class BaseJSDOMEnvironment
       },
     );
     const global = (this.global = this.dom.window as unknown as Win);
-    
+
     // Check if the custom JSDOM has overridden the window property
     // If so, we detected a custom implementation and should use the custom window
     const internalVMContext = this.dom.getInternalVMContext();
@@ -220,7 +219,7 @@ export default abstract class BaseJSDOMEnvironment
       if (this._cachedVmContext) {
         return this._cachedVmContext;
       }
-      
+
       const internalContext = this.dom.getInternalVMContext();
       // If the custom JSDOM instance has overridden the window property
       // (e.g., with a Proxy), we need to create a new VM context from it

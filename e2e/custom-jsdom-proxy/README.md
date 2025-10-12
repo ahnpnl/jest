@@ -13,28 +13,84 @@ This example demonstrates how to create a custom JSDOM implementation that overr
 When creating a Proxy for the JSDOM window, you must handle several special cases:
 
 ### 1. Window Self-Reference
+
+The `window` property must return the proxy itself, not the underlying target:
+
 ```javascript
-case "window": return this._windowProxy;
+class CustomJSDOM extends JSDOM.JSDOM {
+  _windowProxy = new Proxy(this.window, {
+    get: (target, prop, receiver) => {
+      if (prop === 'window') return this._windowProxy;
+      // ... other cases
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+
+  get window() {
+    return this._windowProxy;
+  }
+}
 ```
-The `window` property must return the proxy itself, not the underlying target.
 
 ### 2. JSDOM Internal Slot Checks
+
+JSDOM methods like `addEventListener` check for internal slots. These methods must be bound to the target, not called on the proxy:
+
 ```javascript
-case "addEventListener":
-case "removeEventListener":
-case "dispatchEvent":
-case "close":
-  return target[prop].bind(target);
+class CustomJSDOM extends JSDOM.JSDOM {
+  _windowProxy = new Proxy(this.window, {
+    get: (target, prop, receiver) => {
+      // Bind methods that check internal slots to the target
+      if (
+        prop === 'addEventListener' ||
+        prop === 'removeEventListener' ||
+        prop === 'dispatchEvent' ||
+        prop === 'close'
+      ) {
+        return target[prop].bind(target);
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+
+  get window() {
+    return this._windowProxy;
+  }
+}
 ```
-JSDOM methods like `addEventListener` check for internal slots. These methods must be bound to the target, not called on the proxy.
 
 ### 3. Complete Proxy Traps
+
+Implement all proxy trap operations to ensure transparent behavior:
+
 ```javascript
-has: (target, prop) => Reflect.has(target, prop),
-set: (target, prop, value, receiver) => Reflect.set(target, prop, value, receiver),
-// ... etc
+class CustomJSDOM extends JSDOM.JSDOM {
+  _windowProxy = new Proxy(this.window, {
+    apply: (target, thisArg, argumentsList) =>
+      Reflect.apply(target, thisArg, argumentsList),
+    construct: (target, argumentsList, newTarget) =>
+      Reflect.construct(target, argumentsList, newTarget),
+    defineProperty: (target, prop, descriptor) =>
+      Reflect.defineProperty(target, prop, descriptor),
+    deleteProperty: (target, prop) => Reflect.deleteProperty(target, prop),
+    get: (target, prop, receiver) => Reflect.get(target, prop, receiver),
+    getOwnPropertyDescriptor: (target, prop) =>
+      Reflect.getOwnPropertyDescriptor(target, prop),
+    getPrototypeOf: target => Reflect.getPrototypeOf(target),
+    has: (target, prop) => Reflect.has(target, prop),
+    isExtensible: target => Reflect.isExtensible(target),
+    ownKeys: target => Reflect.ownKeys(target),
+    preventExtensions: target => Reflect.preventExtensions(target),
+    set: (target, prop, value, receiver) =>
+      Reflect.set(target, prop, value, receiver),
+    setPrototypeOf: (target, proto) => Reflect.setPrototypeOf(target, proto),
+  });
+
+  get window() {
+    return this._windowProxy;
+  }
+}
 ```
-Implement all proxy trap operations to ensure transparent behavior.
 
 ## Example: Mocking Location
 
@@ -44,9 +100,9 @@ See `CustomJSDOMLoc.js` for a complete example that mocks `window.location` with
 
 ```javascript
 // custom-env.js
-import BaseJSDOMEnvironment from "@jest/environment-jsdom-abstract";
-import JSDOMModule from "jsdom";
-import { JSDOMWithDummyLocation } from "./CustomJSDOMLoc.js";
+import BaseJSDOMEnvironment from '@jest/environment-jsdom-abstract';
+import JSDOMModule from 'jsdom';
+import {JSDOMWithDummyLocation} from './CustomJSDOMLoc.js';
 
 export default class CustomEnvironment extends BaseJSDOMEnvironment {
   constructor(config, context) {
@@ -56,6 +112,7 @@ export default class CustomEnvironment extends BaseJSDOMEnvironment {
 ```
 
 Then in your package.json:
+
 ```json
 {
   "jest": {
