@@ -13,7 +13,7 @@ import type {
   JestEnvironmentConfig,
 } from '@jest/environment';
 import {LegacyFakeTimers, ModernFakeTimers} from '@jest/fake-timers';
-import type {Global} from '@jest/types';
+import type {Config, Global} from '@jest/types';
 import {ModuleMocker} from 'jest-mock';
 import {installCommonGlobals} from 'jest-util';
 
@@ -53,6 +53,9 @@ export default abstract class BaseJSDOMEnvironment
 
     const virtualConsole = new VirtualConsole();
 
+    const testEnvironmentOptions =
+      projectConfig.testEnvironmentOptions as Config.JSDOMEnvironmentOptions;
+
     if (
       'forwardTo' in virtualConsole &&
       typeof virtualConsole.forwardTo === 'function'
@@ -77,21 +80,21 @@ export default abstract class BaseJSDOMEnvironment
     });
 
     this.dom = new JSDOM(
-      typeof projectConfig.testEnvironmentOptions.html === 'string'
-        ? projectConfig.testEnvironmentOptions.html
+      typeof testEnvironmentOptions.html === 'string'
+        ? testEnvironmentOptions.html
         : '<!DOCTYPE html>',
       {
         pretendToBeVisual: true,
         resources:
-          typeof projectConfig.testEnvironmentOptions.userAgent === 'string'
+          typeof testEnvironmentOptions.userAgent === 'string'
             ? new ResourceLoader({
-                userAgent: projectConfig.testEnvironmentOptions.userAgent,
+                userAgent: testEnvironmentOptions.userAgent,
               })
             : undefined,
         runScripts: 'dangerously',
         url: 'http://localhost/',
         virtualConsole,
-        ...projectConfig.testEnvironmentOptions,
+        ...testEnvironmentOptions,
       },
     );
     const global = (this.global = this.dom.window as unknown as Win);
@@ -141,8 +144,8 @@ export default abstract class BaseJSDOMEnvironment
       return originalRemoveListener.apply(this, args);
     };
 
-    if ('customExportConditions' in projectConfig.testEnvironmentOptions) {
-      const {customExportConditions} = projectConfig.testEnvironmentOptions;
+    if ('customExportConditions' in testEnvironmentOptions) {
+      const {customExportConditions} = testEnvironmentOptions;
       if (
         Array.isArray(customExportConditions) &&
         customExportConditions.every(isString)

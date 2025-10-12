@@ -349,7 +349,9 @@ class GlobalProxy implements ProxyHandler<typeof globalThis> {
 function readGlobalsCleanupConfig(
   projectConfig: Config.ProjectConfig,
 ): DeletionMode {
-  const rawConfig = projectConfig.testEnvironmentOptions.globalsCleanup;
+  const rawConfig = (
+    projectConfig.testEnvironmentOptions as Config.NodeEnvironmentOptions
+  ).globalsCleanup;
   const config = rawConfig?.toString()?.toLowerCase();
   switch (config) {
     case 'off':

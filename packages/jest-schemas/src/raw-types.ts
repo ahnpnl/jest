@@ -225,6 +225,39 @@ const HasteConfig = Type.Partial(
   }),
 );
 
+const BaseTestEnvironmentOptions = Type.Object({
+  customExportConditions: Type.Optional(Type.Array(Type.String())),
+});
+
+const JSDOMEnvironmentOptions = Type.Intersect([
+  BaseTestEnvironmentOptions,
+  Type.Object({
+    html: Type.Optional(Type.String()),
+    userAgent: Type.Optional(Type.String()),
+    url: Type.Optional(Type.String()),
+    referrer: Type.Optional(Type.String()),
+    contentType: Type.Optional(Type.String()),
+    includeNodeLocations: Type.Optional(Type.Boolean()),
+    storageQuota: Type.Optional(Type.Number()),
+  }),
+]);
+
+const NodeEnvironmentOptions = Type.Intersect([
+  BaseTestEnvironmentOptions,
+  Type.Object({
+    globalsCleanup: Type.Optional(
+      Type.Union([
+        Type.Literal('on'),
+        Type.Literal('soft'),
+        Type.Literal('off'),
+      ]),
+    ),
+    displayErrors: Type.Optional(Type.Boolean()),
+    timeout: Type.Optional(Type.Number()),
+    breakOnSigint: Type.Optional(Type.Boolean()),
+  }),
+]);
+
 export const InitialOptions = Type.Partial(
   Type.Object({
     automock: Type.Boolean(),
@@ -320,7 +353,12 @@ export const InitialOptions = Type.Partial(
     snapshotFormat: SnapshotFormat,
     errorOnDeprecated: Type.Boolean(),
     testEnvironment: Type.String(),
-    testEnvironmentOptions: Type.Record(Type.String(), Type.Unknown()),
+    testEnvironmentOptions: Type.Union([
+      JSDOMEnvironmentOptions,
+      NodeEnvironmentOptions,
+      BaseTestEnvironmentOptions,
+      Type.Record(Type.String(), Type.Unknown()),
+    ]),
     testFailureExitCode: Type.Integer(),
     testLocationInResults: Type.Boolean(),
     testMatch: Type.Union([Type.String(), Type.Array(Type.String())]),

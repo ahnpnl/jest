@@ -219,6 +219,31 @@ export type DisplayName = {
   color: typeof ForegroundColor;
 };
 
+export type BaseTestEnvironmentOptions = {
+  customExportConditions?: Array<string>;
+};
+
+export type JSDOMEnvironmentOptions = BaseTestEnvironmentOptions & {
+  html?: string;
+  userAgent?: string;
+  url?: string;
+  referrer?: string;
+  contentType?: string;
+  includeNodeLocations?: boolean;
+  storageQuota?: number;
+};
+
+export type NodeEnvironmentOptions = BaseTestEnvironmentOptions & {
+  globalsCleanup?: 'on' | 'soft' | 'off';
+  displayErrors?: boolean;
+  timeout?: number;
+  breakOnSigint?: boolean;
+};
+
+export type GenericEnvironmentOptions = BaseTestEnvironmentOptions & {
+  [key: string]: unknown;
+};
+
 export type InitialOptionsWithRootDir = InitialOptions &
   Required<Pick<InitialOptions, 'rootDir'>>;
 

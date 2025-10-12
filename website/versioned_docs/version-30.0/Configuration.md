@@ -2055,6 +2055,30 @@ const config: Config = {
 export default config;
 ```
 
+Besides common option `customExportConditions` for test environment, there are also environment-specific options.
+
+#### Environment `jsdom` options
+
+- **`html`** (**string**): The HTML string used to generate the DOM tree. Default: `'<!DOCTYPE html>'`
+- **`userAgent`** (**string**): The user agent to be used when creating the `window.navigator` object.
+
+and with additionally following options from [JSDOM](https://github.com/jsdom/jsdom?tab=readme-ov-file#simple-options):
+
+- **`url`** (**string**): The URL of the page. Default: `'http://localhost/'`
+- **`referrer`** (**string**): The referrer of the page
+- **`contentType`** (**string**): The content type of the page
+- **`includeNodeLocations`** (**boolean**): Include node locations in the DOM
+- **`storageQuota`** (**number**): The storage quota for the page
+
+#### Environment `node` options
+
+The following options are available:
+
+- **`globalsCleanup`** (**'on'** | **'soft'** | **'off'**): Controls cleanup of global variables between tests. Default: `'soft'`.
+- **`displayErrors`** (**boolean**): Display errors from the VM context. See [Node.js VM documentation](https://nodejs.org/api/vm.html#scriptrunincontextcontextifiedobject-options)
+- **`timeout`** (**number**): Timeout for the VM context. See [Node.js VM documentation](https://nodejs.org/api/vm.html#scriptrunincontextcontextifiedobject-options)
+- **`breakOnSigint`** (**boolean**): Break on SIGINT. See [Node.js VM documentation](https://nodejs.org/api/vm.html#scriptrunincontextcontextifiedobject-options)
+
 These options can also be passed in a docblock, similar to `testEnvironment`. The string with options must be parseable by `JSON.parse`:
 
 ```js

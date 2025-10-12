@@ -6,6 +6,7 @@
  */
 
 import {describe, expect, test} from 'tstyche';
+import type {Config as ConfigTypes} from '@jest/types';
 import type {Config} from 'jest';
 
 const config: Config = {};
@@ -126,5 +127,37 @@ describe('Config', () => {
         },
       ],
     });
+  });
+
+  test('environment-specific option types', () => {
+    const jsdomOptions: ConfigTypes.JSDOMEnvironmentOptions = {
+      contentType: 'text/html',
+      customExportConditions: ['browser'],
+      html: '<!DOCTYPE html><p>Hello world</p>',
+      includeNodeLocations: false,
+      referrer: 'https://google.com',
+      storageQuota: 1_000_000,
+      url: 'https://example.com',
+      userAgent: 'userAgent',
+    };
+
+    expect(jsdomOptions).type.toBe<ConfigTypes.JSDOMEnvironmentOptions>();
+
+    const nodeOptions: ConfigTypes.NodeEnvironmentOptions = {
+      breakOnSigint: true,
+      customExportConditions: ['node'],
+      displayErrors: true,
+      globalsCleanup: 'soft',
+      timeout: 3000,
+    };
+
+    expect(nodeOptions).type.toBe<ConfigTypes.NodeEnvironmentOptions>();
+
+    const genericOptions: ConfigTypes.GenericEnvironmentOptions = {
+      anyOtherOption: 'value',
+      customExportConditions: ['custom'],
+    };
+
+    expect(genericOptions).type.toBe<ConfigTypes.GenericEnvironmentOptions>();
   });
 });

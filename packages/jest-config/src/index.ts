@@ -32,7 +32,24 @@ type ReadConfig = {
   projectConfig: Config.ProjectConfig;
 };
 
-type JestTestConfigObject = Config.InitialOptions;
+type TestConfigWithoutEnvironment = Omit<
+  Config.InitialOptions,
+  'testEnvironment' | 'testEnvironmentOptions'
+>;
+
+type JestTestConfigObject =
+  | (TestConfigWithoutEnvironment & {
+      testEnvironment?: 'jsdom';
+      testEnvironmentOptions?: Config.JSDOMEnvironmentOptions;
+    })
+  | (TestConfigWithoutEnvironment & {
+      testEnvironment?: 'node';
+      testEnvironmentOptions?: Config.NodeEnvironmentOptions;
+    })
+  | (TestConfigWithoutEnvironment & {
+      testEnvironment?: string;
+      testEnvironmentOptions?: Config.GenericEnvironmentOptions;
+    });
 
 type UserConfigFnObject = () => JestTestConfigObject;
 type UserConfigFnPromise = () => Promise<JestTestConfigObject>;
