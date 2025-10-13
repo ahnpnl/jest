@@ -40,7 +40,7 @@ describe('JSDomEnvironment abstract', () => {
       {console, docblockPragmas: {}, testPath: __filename},
     );
 
-    expect(env.dom).toBeDefined();
+    expect(env.global).toBeDefined();
   });
 
   it('should work with custom jsdom version >= 27', () => {
@@ -60,6 +60,6 @@ describe('JSDomEnvironment abstract', () => {
       {console, docblockPragmas: {}, testPath: __filename},
     );
 
-    expect(env.dom).toBeDefined();
+    expect(env.global).toBeDefined();
   });
 });

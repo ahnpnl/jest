@@ -33,13 +33,13 @@ function isString(value: unknown): value is string {
 export default abstract class BaseJSDOMEnvironment
   implements JestEnvironment<number>
 {
-  dom: jsdom.JSDOM | null;
   fakeTimers: LegacyFakeTimers<number> | null;
   fakeTimersModern: ModernFakeTimers | null;
   global: Win;
-  private errorEventListener: ((event: Event & {error: Error}) => void) | null;
   moduleMocker: ModuleMocker | null;
   customExportConditions = ['browser'];
+  private _errorEventListener: ((event: Event & {error: Error}) => void) | null;
+  private _dom: jsdom.JSDOM | null;
   private readonly _configuredExportConditions?: Array<string>;
 
   protected constructor(
@@ -76,7 +76,7 @@ export default abstract class BaseJSDOMEnvironment
       context.console.error(error);
     });
 
-    this.dom = new JSDOM(
+    this._dom = new JSDOM(
       typeof projectConfig.testEnvironmentOptions.html === 'string'
         ? projectConfig.testEnvironmentOptions.html
         : '<!DOCTYPE html>',
@@ -94,7 +94,7 @@ export default abstract class BaseJSDOMEnvironment
         ...projectConfig.testEnvironmentOptions,
       },
     );
-    const global = (this.global = this.dom.window as unknown as Win);
+    const global = (this.global = this._dom.window as unknown as Win);
 
     if (global == null) {
       throw new Error('JSDOM did not return a Window object');
@@ -112,12 +112,12 @@ export default abstract class BaseJSDOMEnvironment
     global.Buffer = Buffer;
 
     // Report uncaught errors.
-    this.errorEventListener = event => {
+    this._errorEventListener = event => {
       if (userErrorListenerCount === 0 && event.error != null) {
         process.emit('uncaughtException', event.error);
       }
     };
-    global.addEventListener('error', this.errorEventListener);
+    global.addEventListener('error', this._errorEventListener);
 
     // However, don't report them as uncaught if the user listens to 'error' event.
     // In that case, we assume the might have custom error handling logic.
@@ -184,15 +184,15 @@ export default abstract class BaseJSDOMEnvironment
       this.fakeTimersModern.dispose();
     }
     if (this.global != null) {
-      if (this.errorEventListener) {
-        this.global.removeEventListener('error', this.errorEventListener);
+      if (this._errorEventListener) {
+        this.global.removeEventListener('error', this._errorEventListener);
       }
       this.global.close();
     }
-    this.errorEventListener = null;
+    this._errorEventListener = null;
     // @ts-expect-error: this.global not allowed to be `null`
     this.global = null;
-    this.dom = null;
+    this._dom = null;
     this.fakeTimers = null;
     this.fakeTimersModern = null;
   }
@@ -202,8 +202,8 @@ export default abstract class BaseJSDOMEnvironment
   }
 
   getVmContext(): Context | null {
-    if (this.dom) {
-      return this.dom.getInternalVMContext();
+    if (this._dom) {
+      return this._dom.getInternalVMContext();
     }
     return null;
   }
