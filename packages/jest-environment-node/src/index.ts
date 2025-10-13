@@ -6,18 +6,17 @@
  */
 
 import {type Context, createContext, runInContext} from 'vm';
-import type {
-  EnvironmentContext,
-  JestEnvironment,
-  JestEnvironmentConfig,
+import {
+  type EnvironmentContext,
+  GlobalProxy,
+  type JestEnvironment,
+  type JestEnvironmentConfig,
 } from '@jest/environment';
 import {LegacyFakeTimers, ModernFakeTimers} from '@jest/fake-timers';
 import type {Config, Global} from '@jest/types';
 import {ModuleMocker} from 'jest-mock';
 import {
   type DeletionMode,
-  canDeleteProperties,
-  deleteProperties,
   initializeGarbageCollectionUtils,
   installCommonGlobals,
   protectProperties,
@@ -238,113 +237,6 @@ export default class NodeEnvironment implements JestEnvironment<Timer> {
 }
 
 export const TestEnvironment = NodeEnvironment;
-
-/**
- * Creates a new empty global object and wraps it with a {@link Proxy}.
- *
- * The purpose is to register any property set on the global object,
- * and {@link #deleteProperties} on them at environment teardown,
- * to clean up memory and prevent leaks.
- */
-class GlobalProxy implements ProxyHandler<typeof globalThis> {
-  private global: typeof globalThis = Object.create(
-    Object.getPrototypeOf(globalThis),
-  );
-  private globalProxy: typeof globalThis = new Proxy(this.global, this);
-  private isEnvSetup = false;
-  private propertyToValue = new Map<string | symbol, unknown>();
-  private leftovers: Array<{property: string | symbol; value: unknown}> = [];
-
-  constructor() {
-    this.register = this.register.bind(this);
-  }
-
-  proxy(): typeof globalThis {
-    return this.globalProxy;
-  }
-
-  /**
-   * Marks that the environment setup has completed, and properties set on
-   * the global object from now on should be deleted at teardown.
-   */
-  envSetupCompleted(): void {
-    this.isEnvSetup = true;
-  }
-
-  /**
-   * Deletes any property that was set on the global object, except for:
-   * 1. Properties that were set before {@link #envSetupCompleted} was invoked.
-   * 2. Properties protected by {@link #protectProperties}.
-   */
-  clear(): void {
-    for (const {value} of [
-      ...[...this.propertyToValue.entries()].map(([property, value]) => ({
-        property,
-        value,
-      })),
-      ...this.leftovers,
-    ]) {
-      deleteProperties(value);
-    }
-    this.propertyToValue.clear();
-    this.leftovers = [];
-    this.global = {} as typeof globalThis;
-    this.globalProxy = {} as typeof globalThis;
-  }
-
-  defineProperty(
-    target: typeof globalThis,
-    property: string | symbol,
-    attributes: PropertyDescriptor,
-  ): boolean {
-    const newAttributes = {...attributes};
-
-    if ('set' in newAttributes && newAttributes.set !== undefined) {
-      const originalSet = newAttributes.set;
-      const register = this.register;
-      newAttributes.set = value => {
-        originalSet(value);
-        const newValue = Reflect.get(target, property);
-        register(property, newValue);
-      };
-    }
-
-    const result = Reflect.defineProperty(target, property, newAttributes);
-
-    if ('value' in newAttributes) {
-      this.register(property, newAttributes.value);
-    }
-
-    return result;
-  }
-
-  deleteProperty(
-    target: typeof globalThis,
-    property: string | symbol,
-  ): boolean {
-    const result = Reflect.deleteProperty(target, property);
-    const value = this.propertyToValue.get(property);
-    if (value) {
-      this.leftovers.push({property, value});
-      this.propertyToValue.delete(property);
-    }
-    return result;
-  }
-
-  private register(property: string | symbol, value: unknown) {
-    const currentValue = this.propertyToValue.get(property);
-    if (value !== currentValue) {
-      if (!this.isEnvSetup && canDeleteProperties(value)) {
-        protectProperties(value);
-      }
-      if (currentValue) {
-        this.leftovers.push({property, value: currentValue});
-      }
-
-      this.propertyToValue.set(property, value);
-    }
-  }
-}
 
 function readGlobalsCleanupConfig(
   projectConfig: Config.ProjectConfig,
