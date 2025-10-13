@@ -81,27 +81,27 @@ const timerIdToRef = (id: number) => ({
 const timerRefToId = (timer: Timer): number | undefined => timer?.id;
 
 export default class NodeEnvironment implements JestEnvironment<Timer> {
-  context: Context | null;
   fakeTimers: LegacyFakeTimers<Timer> | null;
   fakeTimersModern: ModernFakeTimers | null;
   global: Global.Global;
   moduleMocker: ModuleMocker | null;
   customExportConditions = ['node', 'node-addons'];
   private readonly _configuredExportConditions?: Array<string>;
+  private _context: Context | null;
   private _globalProxy: GlobalProxy;
 
   // while `context` is unused, it should always be passed
-  constructor(config: JestEnvironmentConfig, _context: EnvironmentContext) {
+  constructor(config: JestEnvironmentConfig, _envContext: EnvironmentContext) {
     const {projectConfig} = config;
 
     const globalsCleanupMode = readGlobalsCleanupConfig(projectConfig);
     initializeGarbageCollectionUtils(globalThis, globalsCleanupMode);
 
     this._globalProxy = new GlobalProxy();
-    this.context = createContext(this._globalProxy.proxy());
+    this._context = createContext(this._globalProxy.proxy());
     const global = runInContext(
       'this',
-      Object.assign(this.context, projectConfig.testEnvironmentOptions),
+      Object.assign(this._context, projectConfig.testEnvironmentOptions),
     ) as Global.Global;
     this.global = global;
 
@@ -222,7 +222,7 @@ export default class NodeEnvironment implements JestEnvironment<Timer> {
     if (this.fakeTimersModern) {
       this.fakeTimersModern.dispose();
     }
-    this.context = null;
+    this._context = null;
     this.fakeTimers = null;
     this.fakeTimersModern = null;
     this._globalProxy.clear();
@@ -233,7 +233,7 @@ export default class NodeEnvironment implements JestEnvironment<Timer> {
   }
 
   getVmContext(): Context | null {
-    return this.context;
+    return this._context;
   }
 }
 
