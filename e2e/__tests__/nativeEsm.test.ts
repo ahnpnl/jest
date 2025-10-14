@@ -194,3 +194,52 @@ onNodeVersions('<16.12.0 || >=22.0.0', () => {
     expect(exitCode).toBe(1);
   });
 });
+
+onNodeVersions('>=20.19.0 || >=22.13.0', () => {
+  test('support require esm in CJS mode', () => {
+    const {exitCode, stdout, stderr} = runJest(
+      resolve(__dirname, '../require-esm/cjs'),
+      ['native-esm-require.test.js'],
+    );
+
+    const {summary} = extractSummary(stderr);
+
+    expect(summary).toMatchSnapshot();
+    expect(stdout).toBe('');
+    expect(exitCode).toBe(0);
+  });
+
+  test('support require esm in ESM mode', () => {
+    const {exitCode, stdout, stderr} = runJest(
+      resolve(__dirname, '../require-esm/esm'),
+      ['native-esm-require.test.mjs'],
+      {
+        nodeOptions: '--experimental-vm-modules --no-warnings',
+      },
+    );
+
+    const {summary} = extractSummary(stderr);
+
+    expect(summary).toMatchSnapshot();
+    expect(stdout).toBe('');
+    expect(exitCode).toBe(0);
+  });
+});
+
+onNodeVersions('<20.19.0 || >=22.0.0 <22.13.0', () => {
+  test('error using require with ESM', () => {
+    const {exitCode, stdout, stderr} = runJest(
+      DIR,
+      ['native-esm-require-error.test.js'],
+      {
+        nodeOptions: '--experimental-vm-modules --no-warnings',
+      },
+    );
+
+    const {summary} = extractSummary(stderr);
+
+    expect(summary).toMatchSnapshot();
+    expect(stdout).toBe('');
+    expect(exitCode).toBe(0);
+  });
+});

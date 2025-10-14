@@ -8,6 +8,14 @@ Time:        <<REPLACED>>
 Ran all test suites matching native-esm-missing-import-assertions.test.js."
 `;
 
+exports[`on node <20.19.0 || >=22.0.0 <22.13.0 error using require with ESM 1`] = `
+"Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        <<REPLACED>>
+Ran all test suites matching native-esm-require-error.test.js."
+`;
+
 exports[`on node >=16.11.0 support re-exports from CJS of dual packages 1`] = `
 "Test Suites: 1 passed, 1 total
 Tests:       1 passed, 1 total
@@ -22,6 +30,22 @@ Tests:       2 passed, 2 total
 Snapshots:   0 total
 Time:        <<REPLACED>>
 Ran all test suites matching native-esm-import-assertions.test.js."
+`;
+
+exports[`on node >=20.19.0 || >=22.13.0 support require esm in CJS mode 1`] = `
+"Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        <<REPLACED>>
+Ran all test suites matching native-esm-require.test.js."
+`;
+
+exports[`on node >=20.19.0 || >=22.13.0 support require esm in ESM mode 1`] = `
+"Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Snapshots:   0 total
+Time:        <<REPLACED>>
+Ran all test suites matching native-esm-require.test.mjs."
 `;
 
 exports[`properly handle re-exported native modules in ESM via CJS 1`] = `
@@ -42,7 +66,7 @@ Ran all test suites matching native-esm-wasm.test.js."
 
 exports[`runs test with native ESM 1`] = `
 "Test Suites: 1 passed, 1 total
-Tests:       31 passed, 31 total
+Tests:       30 passed, 30 total
 Snapshots:   0 total
 Time:        <<REPLACED>>
 Ran all test suites matching native-esm.test.js."

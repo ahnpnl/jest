@@ -153,6 +153,18 @@ const supportsNodeColonModulePrefixInRequire = (() => {
   }
 })();
 
+const runtimeSupportsRequireEsm = () => {
+  if ('features' in process) {
+    const features = process.features as {
+      require_module?: boolean;
+    } & Record<string, any>;
+
+    return 'require_module' in process.features && !!features.require_module;
+  }
+
+  return false;
+};
+
 type ESModule = VMModule | SyntheticModule;
 type JestModule = ESModule | Promise<ESModule>;
 
@@ -940,7 +952,10 @@ export default class Runtime {
       modulePath = this._resolveCjsModule(from, moduleName);
     }
 
-    if (this.unstable_shouldLoadAsEsm(modulePath)) {
+    if (
+      this.unstable_shouldLoadAsEsm(modulePath) &&
+      !runtimeSupportsRequireEsm()
+    ) {
       // Node includes more info in the message
       const error: NodeJS.ErrnoException = new Error(
         `Must use import to load ES Module: ${modulePath}`,
@@ -1178,6 +1193,15 @@ export default class Runtime {
       if (this._shouldMockCjs(from, moduleName, this._explicitShouldMock)) {
         return this.requireMock<T>(from, moduleName);
       } else {
+        if (
+          this.unstable_shouldLoadAsEsm(moduleName) &&
+          runtimeSupportsRequireEsm()
+        ) {
+          const resolved = this._requireResolve(from, moduleName);
+
+          return require(resolved);
+        }
+
         return this.requireModule<T>(from, moduleName);
       }
     } catch (error) {
@@ -2103,12 +2127,12 @@ export default class Runtime {
     resolve.paths = (moduleName: string) =>
       this._requireResolvePaths(from.filename, moduleName);
 
-    const moduleRequire = (
-      options?.isInternalModule
-        ? (moduleName: string) =>
-            this.requireInternalModule(from.filename, moduleName)
-        : this.requireModuleOrMock.bind(this, from.filename)
-    ) as NodeJS.Require;
+    const moduleRequire: NodeJS.Require = (moduleName => {
+      return options?.isInternalModule
+        ? this.requireInternalModule(from.filename, moduleName)
+        : this.requireModuleOrMock(from.filename, moduleName);
+    }) as NodeJS.Require;
+
     moduleRequire.extensions = Object.create(null);
     moduleRequire.resolve = resolve;
     moduleRequire.cache = (() => {
