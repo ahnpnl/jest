@@ -952,6 +952,8 @@ export default class Runtime {
       modulePath = this._resolveCjsModule(from, moduleName);
     }
 
+    // On Node 18 and earlier, ESM modules cannot be required
+    // On Node 20+, they can be required and are handled in _loadModule
     if (
       this.unstable_shouldLoadAsEsm(modulePath) &&
       !runtimeSupportsRequireEsm()
@@ -1159,6 +1161,13 @@ export default class Runtime {
         this._environment.global.JSON.parse(transformedFile);
     } else if (path.extname(modulePath) === '.node') {
       localModule.exports = require(modulePath);
+    } else if (
+      this.unstable_shouldLoadAsEsm(modulePath) &&
+      runtimeSupportsRequireEsm()
+    ) {
+      // Node 20+ supports requiring ESM modules natively
+      // Use native require which returns the ESM namespace object
+      localModule.exports = require(modulePath);
     } else {
       // Only include the fromPath if a moduleName is given. Else treat as root.
       const fromPath = moduleName ? from : null;
@@ -1193,15 +1202,6 @@ export default class Runtime {
       if (this._shouldMockCjs(from, moduleName, this._explicitShouldMock)) {
         return this.requireMock<T>(from, moduleName);
       } else {
-        if (
-          this.unstable_shouldLoadAsEsm(moduleName) &&
-          runtimeSupportsRequireEsm()
-        ) {
-          const resolved = this._requireResolve(from, moduleName);
-
-          return require(resolved);
-        }
-
         return this.requireModule<T>(from, moduleName);
       }
     } catch (error) {
