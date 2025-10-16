@@ -13861,7 +13861,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "jest-changed-files@workspace:packages/jest-changed-files"
   dependencies:
-    execa: "npm:^5.1.1"
+    execa: "npm:^9.6.0"
     jest-util: "workspace:*"
     p-limit: "npm:^3.1.0"
   languageName: unknown
@@ -13884,7 +13884,7 @@ __metadata:
     chalk: "npm:^4.1.2"
     co: "npm:^4.6.0"
     dedent: "npm:^1.6.0"
-    execa: "npm:^5.1.1"
+    execa: "npm:^9.6.0"
     graceful-fs: "npm:^4.2.11"
     is-generator-fn: "npm:^2.1.0"
     jest-each: "workspace:*"

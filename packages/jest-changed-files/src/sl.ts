@@ -7,7 +7,7 @@
  */
 
 import * as path from 'path';
-import execa from 'execa';
+import {execa} from 'execa';
 import type {SCMAdapter} from './types';
 
 /**
@@ -58,14 +58,14 @@ const adapter: SCMAdapter = {
         subprocess.stdout.once('data', (data: Buffer | string) => {
           data = Buffer.isBuffer(data) ? data.toString() : data;
           if (data.codePointAt(0) === 27) {
-            subprocess.cancel();
+            subprocess.kill();
             isSteamLocomotive = true;
           }
         });
       }
 
       const result = await subprocess;
-      if (result.killed && isSteamLocomotive) {
+      if (result.isTerminated && isSteamLocomotive) {
         return null;
       }
 

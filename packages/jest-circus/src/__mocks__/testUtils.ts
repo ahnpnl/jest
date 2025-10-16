@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {sync as spawnSync} from 'execa';
+import {execaSync} from 'execa';
 import * as fs from 'graceful-fs';
 import tempy from 'tempy';
 
@@ -49,7 +49,7 @@ export const runTest = (
   `;
 
   fs.writeFileSync(tmpFilename, content);
-  const result = spawnSync('node', [tmpFilename], {
+  const result = execaSync('node', [tmpFilename], {
     cwd: process.cwd(),
   });
 
