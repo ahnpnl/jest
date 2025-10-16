@@ -7,7 +7,7 @@
  */
 
 import * as path from 'path';
-import execa from 'execa';
+import {execa} from 'execa';
 import type {SCMAdapter} from './types';
 
 /**
@@ -54,18 +54,16 @@ const adapter: SCMAdapter = {
 
       // Check if we're calling sl (steam locomotive) instead of sl (sapling)
       // by looking for the escape character in the first chunk of data.
-      if (subprocess.stdout) {
-        subprocess.stdout.once('data', (data: Buffer | string) => {
-          data = Buffer.isBuffer(data) ? data.toString() : data;
-          if (data.codePointAt(0) === 27) {
-            subprocess.cancel();
-            isSteamLocomotive = true;
-          }
-        });
-      }
+      subprocess.stdout.once('data', (data: Buffer | string) => {
+        data = Buffer.isBuffer(data) ? data.toString() : data;
+        if (data.codePointAt(0) === 27) {
+          subprocess.kill();
+          isSteamLocomotive = true;
+        }
+      });
 
       const result = await subprocess;
-      if (result.killed && isSteamLocomotive) {
+      if (result.isTerminated && isSteamLocomotive) {
         return null;
       }
 
