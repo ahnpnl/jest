@@ -49,6 +49,23 @@ describe('ViteDevServerManager', () => {
       expect(config.viteConfig).toEqual({base: '/app'});
     });
 
+    it('extracts new enhancement options', () => {
+      const jestConfig = {
+        vite: {
+          enableHMR: true,
+          enabled: true,
+          smartTestSelection: true,
+          useTransformPipeline: true,
+        },
+      } as any;
+      const config = getViteWatchModeConfig(jestConfig);
+
+      expect(config.enabled).toBe(true);
+      expect(config.useTransformPipeline).toBe(true);
+      expect(config.smartTestSelection).toBe(true);
+      expect(config.enableHMR).toBe(true);
+    });
+
     it('returns disabled when vite config is not an object', () => {
       const jestConfig = {
         vite: 'invalid',
@@ -114,6 +131,76 @@ describe('ViteDevServerManager', () => {
       );
 
       expect(manager.getModuleGraph()).toBeUndefined();
+    });
+
+    it('transformFile returns null when server is not running', async () => {
+      const manager = new ViteDevServerManager(
+        {enabled: false},
+        '/test/project',
+      );
+
+      const result = await manager.transformFile('/test/file.ts');
+      expect(result).toBeNull();
+    });
+
+    it('transformFile returns null when useTransformPipeline is false', async () => {
+      const manager = new ViteDevServerManager(
+        {enabled: true, useTransformPipeline: false},
+        '/test/project',
+      );
+
+      const result = await manager.transformFile('/test/file.ts');
+      expect(result).toBeNull();
+    });
+
+    it('getAffectedTests returns all tests when server is not running', async () => {
+      const manager = new ViteDevServerManager(
+        {enabled: false},
+        '/test/project',
+      );
+
+      const allTests = ['/test/a.test.ts', '/test/b.test.ts'];
+      const result = await manager.getAffectedTests('/src/module.ts', allTests);
+      expect(result).toEqual(allTests);
+    });
+
+    it('getAffectedTests returns all tests when smartTestSelection is false', async () => {
+      const manager = new ViteDevServerManager(
+        {enabled: true, smartTestSelection: false},
+        '/test/project',
+      );
+
+      const allTests = ['/test/a.test.ts', '/test/b.test.ts'];
+      const result = await manager.getAffectedTests('/src/module.ts', allTests);
+      expect(result).toEqual(allTests);
+    });
+
+    it('getModuleDependencies returns empty set when server is not running', async () => {
+      const manager = new ViteDevServerManager(
+        {enabled: false},
+        '/test/project',
+      );
+
+      const result = await manager.getModuleDependencies('/test/file.ts');
+      expect(result).toEqual(new Set());
+    });
+
+    it('clearCaches does not throw', () => {
+      const manager = new ViteDevServerManager(
+        {enabled: false},
+        '/test/project',
+      );
+
+      expect(() => manager.clearCaches()).not.toThrow();
+    });
+
+    it('setupHMR does not throw when server is not running', () => {
+      const manager = new ViteDevServerManager(
+        {enabled: false},
+        '/test/project',
+      );
+
+      expect(() => manager.setupHMR()).not.toThrow();
     });
   });
 });

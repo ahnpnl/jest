@@ -352,10 +352,13 @@ export const InitialOptions = Type.Partial(
     workerThreads: Type.Boolean(),
     vite: Type.Partial(
       Type.Object({
-        enabled: Type.Boolean(),
-        configFile: Type.String(),
-        port: Type.Number(),
         config: Type.Record(Type.String(), Type.Unknown()),
+        configFile: Type.String(),
+        enableHMR: Type.Boolean(),
+        enabled: Type.Boolean(),
+        port: Type.Number(),
+        smartTestSelection: Type.Boolean(),
+        useTransformPipeline: Type.Boolean(),
       }),
     ),
   }),

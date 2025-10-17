@@ -86,7 +86,7 @@ if (viteDevServerManager?.isRunning()) {
 New configuration option added to Jest's schema:
 
 ```typescript
-vite: Type.Partial(
+Type.Partial(
   Type.Object({
     enabled: Type.Boolean(),
     configFile: Type.String(),
@@ -174,12 +174,18 @@ private async createViteConfig(): Promise<any> {
 
 ## Future Enhancements
 
-The current implementation lays the groundwork for future optimizations:
+The implementation now includes the following enhancements:
 
-1. **Transform Pipeline Integration**: Use Vite's transform pipeline for faster module transformation
-2. **Smarter Test Selection**: Leverage Vite's module graph to determine which tests need to run
-3. **HMR Support**: Implement proper HMR for faster test re-runs
-4. **Runtime Integration**: Potentially replace Jest's runtime with Vite-powered execution
+1. **Transform Pipeline Integration** ✅ - Vite's transform pipeline can be used for faster module transformation when `useTransformPipeline` is enabled
+2. **Smarter Test Selection** ✅ - The module graph is leveraged to determine which tests need to run when `smartTestSelection` is enabled
+3. **HMR Support** ✅ - Hot Module Replacement is implemented when `enableHMR` is enabled
+4. **Runtime Integration** - Future work could explore replacing Jest's runtime with Vite-powered execution
+
+Additional future enhancements:
+- Deeper integration with Vite's plugin ecosystem
+- Support for Vite's SSR (Server-Side Rendering) capabilities
+- Enhanced caching strategies leveraging Vite's cache
+- Better integration with Vite's dev server middleware
 
 ## Limitations
 

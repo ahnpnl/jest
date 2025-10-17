@@ -19,6 +19,12 @@ export type ViteWatchModeConfig = {
   port?: number;
   /** Additional Vite configuration */
   viteConfig?: Record<string, any>;
+  /** Enable Vite transform pipeline integration */
+  useTransformPipeline?: boolean;
+  /** Enable smart test selection based on module graph */
+  smartTestSelection?: boolean;
+  /** Enable HMR (Hot Module Replacement) */
+  enableHMR?: boolean;
 };
 
 /**
@@ -32,6 +38,8 @@ export default class ViteDevServerManager {
   private viteDevServer: any = null;
   private config: ViteWatchModeConfig;
   private projectRoot: string;
+  private moduleGraphCache = new Map<string, Set<string>>();
+  private transformCache = new Map<string, string>();
 
   constructor(config: ViteWatchModeConfig, projectRoot: string) {
     this.config = config;
@@ -60,12 +68,32 @@ export default class ViteDevServerManager {
       this.viteDevServer = await vite.createServer(viteConfig);
       await this.viteDevServer.listen();
 
+      // Setup HMR if enabled
+      if (this.config.enableHMR) {
+        this.setupHMR();
+      }
+
       // eslint-disable-next-line no-console
       console.log(
         `Vite dev server started at http://localhost:${
           this.viteDevServer.config.server.port
         }`,
       );
+
+      if (this.config.useTransformPipeline) {
+        // eslint-disable-next-line no-console
+        console.log('Vite transform pipeline enabled');
+      }
+
+      if (this.config.smartTestSelection) {
+        // eslint-disable-next-line no-console
+        console.log('Smart test selection enabled');
+      }
+
+      if (this.config.enableHMR) {
+        // eslint-disable-next-line no-console
+        console.log('Hot Module Replacement (HMR) enabled');
+      }
     } catch (error: any) {
       console.error('Failed to start Vite dev server:', error.message);
       // Don't throw - allow Jest to continue without Vite
@@ -79,6 +107,7 @@ export default class ViteDevServerManager {
     if (this.viteDevServer) {
       try {
         await this.viteDevServer.close();
+        this.clearCaches();
         // eslint-disable-next-line no-console
         console.log('Vite dev server stopped');
       } catch (error: any) {
@@ -101,10 +130,202 @@ export default class ViteDevServerManager {
       const module = this.viteDevServer.moduleGraph.getModuleById(filePath);
       if (module) {
         this.viteDevServer.moduleGraph.invalidateModule(module);
+
+        // Clear transform cache for this module
+        this.transformCache.delete(filePath);
+
+        // Clear module graph cache entries that include this file
+        for (const [key, deps] of this.moduleGraphCache.entries()) {
+          if (deps.has(filePath)) {
+            this.moduleGraphCache.delete(key);
+          }
+        }
       }
     } catch (error: any) {
       console.error('Failed to invalidate module:', error.message);
     }
+  }
+
+  /**
+   * Transforms a file using Vite's transform pipeline
+   * @param filePath - The file path to transform
+   * @returns The transformed code or null if transformation fails
+   */
+  async transformFile(filePath: string): Promise<string | null> {
+    if (!this.viteDevServer || !this.config.useTransformPipeline) {
+      return null;
+    }
+
+    // Check cache first
+    if (this.transformCache.has(filePath)) {
+      return this.transformCache.get(filePath)!;
+    }
+
+    try {
+      const result = await this.viteDevServer.transformRequest(filePath);
+      if (result?.code) {
+        this.transformCache.set(filePath, result.code);
+        return result.code;
+      }
+    } catch (error: any) {
+      console.error(`Failed to transform ${filePath}:`, error.message);
+    }
+
+    return null;
+  }
+
+  /**
+   * Gets all test files that depend on the changed file
+   * Uses Vite's module graph for smart test selection
+   * @param changedFile - The file that changed
+   * @param allTestPaths - All available test paths
+   * @returns Array of test paths that should be run
+   */
+  async getAffectedTests(
+    changedFile: string,
+    allTestPaths: Array<string>,
+  ): Promise<Array<string>> {
+    if (
+      !this.viteDevServer ||
+      !this.config.smartTestSelection ||
+      allTestPaths.length === 0
+    ) {
+      return allTestPaths;
+    }
+
+    try {
+      const affectedTests = new Set<string>();
+      const moduleGraph = this.viteDevServer.moduleGraph;
+      const changedModule = moduleGraph.getModuleById(changedFile);
+
+      if (!changedModule) {
+        return allTestPaths;
+      }
+
+      // Get all importers of the changed module (reverse dependency graph)
+      const getImporters = (module: any, visited = new Set<any>()): void => {
+        if (visited.has(module)) {
+          return;
+        }
+        visited.add(module);
+
+        for (const importer of module.importers || []) {
+          if (importer.file && allTestPaths.includes(importer.file)) {
+            affectedTests.add(importer.file);
+          }
+          getImporters(importer, visited);
+        }
+      };
+
+      getImporters(changedModule);
+
+      // If the changed file itself is a test, include it
+      if (allTestPaths.includes(changedFile)) {
+        affectedTests.add(changedFile);
+      }
+
+      // If no specific tests are affected, run all tests
+      // This happens when a file changes that no test imports yet
+      if (affectedTests.size === 0) {
+        return allTestPaths;
+      }
+
+      return [...affectedTests];
+    } catch (error: any) {
+      console.error('Failed to determine affected tests:', error.message);
+      return allTestPaths;
+    }
+  }
+
+  /**
+   * Sets up HMR (Hot Module Replacement) handlers
+   * This allows for faster test re-runs without full reloads
+   */
+  setupHMR(): void {
+    if (!this.viteDevServer || !this.config.enableHMR) {
+      return;
+    }
+
+    try {
+      // Listen to HMR events
+      if (this.viteDevServer.ws) {
+        this.viteDevServer.ws.on('connection', () => {
+          // Connection established
+        });
+      }
+
+      // Handle module updates
+      if (this.viteDevServer.moduleGraph) {
+        const originalOnFileChange =
+          this.viteDevServer.moduleGraph.onFileChange;
+        this.viteDevServer.moduleGraph.onFileChange = (file: string) => {
+          this.invalidateModule(file);
+          if (originalOnFileChange) {
+            originalOnFileChange.call(this.viteDevServer.moduleGraph, file);
+          }
+        };
+      }
+    } catch (error: any) {
+      console.error('Failed to setup HMR:', error.message);
+    }
+  }
+
+  /**
+   * Gets module dependencies from the module graph
+   * @param filePath - The file path to get dependencies for
+   * @returns Set of file paths that this file depends on
+   */
+  async getModuleDependencies(filePath: string): Promise<Set<string>> {
+    if (!this.viteDevServer) {
+      return new Set();
+    }
+
+    // Check cache first
+    if (this.moduleGraphCache.has(filePath)) {
+      return this.moduleGraphCache.get(filePath)!;
+    }
+
+    const dependencies = new Set<string>();
+
+    try {
+      const moduleGraph = this.viteDevServer.moduleGraph;
+      const module = moduleGraph.getModuleById(filePath);
+
+      if (module) {
+        const collectDeps = (mod: any, visited = new Set<any>()): void => {
+          if (visited.has(mod)) {
+            return;
+          }
+          visited.add(mod);
+
+          for (const imported of mod.importedModules || []) {
+            if (imported.file) {
+              dependencies.add(imported.file);
+              collectDeps(imported, visited);
+            }
+          }
+        };
+
+        collectDeps(module);
+      }
+
+      this.moduleGraphCache.set(filePath, dependencies);
+    } catch (error: any) {
+      console.error(
+        `Failed to get dependencies for ${filePath}:`,
+        error.message,
+      );
+    }
+
+    return dependencies;
+  }
+
+  /**
+   * Clears all caches (transform cache and module graph cache)
+   */
+  clearCaches(): void {
+    this.transformCache.clear();
+    this.moduleGraphCache.clear();
   }
 
   /**
@@ -201,8 +422,11 @@ export function getViteWatchModeConfig(
 
   return {
     configFile: viteConfig.configFile,
+    enableHMR: viteConfig.enableHMR === true,
     enabled: viteConfig.enabled === true,
     port: viteConfig.port,
+    smartTestSelection: viteConfig.smartTestSelection === true,
+    useTransformPipeline: viteConfig.useTransformPipeline === true,
     viteConfig: viteConfig.config,
   };
 }

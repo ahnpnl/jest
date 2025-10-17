@@ -4292,8 +4292,11 @@ __metadata:
     slash: "npm:^3.0.0"
   peerDependencies:
     node-notifier: ^8.0.1 || ^9.0.0 || ^10.0.0
+    vite: ^5.0.0 || ^6.0.0
   peerDependenciesMeta:
     node-notifier:
+      optional: true
+    vite:
       optional: true
   languageName: unknown
   linkType: soft
@@ -14042,6 +14045,14 @@ __metadata:
     jest-mock: "workspace:*"
     jest-util: "workspace:*"
     jest-validate: "workspace:*"
+  languageName: unknown
+  linkType: soft
+
+"jest-example-vite-integration@workspace:examples/vite-integration":
+  version: 0.0.0-use.local
+  resolution: "jest-example-vite-integration@workspace:examples/vite-integration"
+  dependencies:
+    jest: "workspace:*"
   languageName: unknown
   linkType: soft
 

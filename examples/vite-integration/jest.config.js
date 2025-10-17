@@ -18,10 +18,19 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/__tests__/**/*.test.js'],
 
-  // Vite integration configuration
+  // Vite integration configuration with all enhancements enabled
   vite: {
     // Enable Vite dev server in watch mode
     enabled: true,
+
+    // Enable Vite's transform pipeline for faster module transformation
+    useTransformPipeline: true,
+
+    // Enable smart test selection to run only affected tests
+    smartTestSelection: true,
+
+    // Enable Hot Module Replacement for faster test re-runs
+    enableHMR: true,
 
     // Optional: Specify a custom Vite config file
     // configFile: './vite.config.js',

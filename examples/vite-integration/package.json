@@ -7,7 +7,6 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
-  "dependencies": {},
   "devDependencies": {
     "jest": "workspace:*"
   }

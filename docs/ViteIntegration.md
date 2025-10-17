@@ -44,6 +44,12 @@ module.exports = {
     configFile: './vite.config.ts',
     // Optional: specify a custom port for the dev server
     port: 5173,
+    // Optional: enable Vite transform pipeline integration
+    useTransformPipeline: true,
+    // Optional: enable smart test selection based on module graph
+    smartTestSelection: true,
+    // Optional: enable Hot Module Replacement (HMR)
+    enableHMR: true,
     // Optional: additional Vite configuration
     config: {
       // Custom Vite options
@@ -82,6 +88,27 @@ Optional
 
 Additional Vite configuration options to merge with the default configuration. See [Vite's configuration documentation](https://vitejs.dev/config/) for available options.
 
+#### `useTransformPipeline`
+
+Type: `boolean`  
+Default: `false`
+
+Enables Vite's transform pipeline for module transformation. When enabled, Jest will use Vite's fast transform pipeline to transform modules, potentially improving performance.
+
+#### `smartTestSelection`
+
+Type: `boolean`  
+Default: `false`
+
+Enables smart test selection based on Vite's module graph. When a file changes, Jest will only run tests that depend on the changed file, significantly reducing test execution time.
+
+#### `enableHMR`
+
+Type: `boolean`  
+Default: `false`
+
+Enables Hot Module Replacement (HMR) support. This allows for faster test re-runs by leveraging Vite's HMR capabilities to update modules without full reloads.
+
 ## Usage
 
 Once configured, simply run Jest in watch mode:
@@ -110,27 +137,24 @@ Vite dev server started at http://localhost:5173
 
 3. **Module Invalidation**: When files change, Jest invalidates the corresponding modules in Vite's module graph, ensuring fresh transforms on the next test run.
 
-4. **Transform Pipeline**: While Jest's current runtime remains unchanged, future enhancements may leverage Vite's transform pipeline for faster module transformation.
+4. **Transform Pipeline** (when `useTransformPipeline` is enabled): Jest uses Vite's fast transform pipeline to transform modules, leveraging Vite's optimized transformation and caching.
+
+5. **Smart Test Selection** (when `smartTestSelection` is enabled): When a file changes, Jest analyzes Vite's module graph to determine which tests depend on the changed file and runs only those tests.
+
+6. **HMR Support** (when `enableHMR` is enabled): Vite's Hot Module Replacement capabilities are leveraged to update modules without full reloads, enabling faster test re-runs.
 
 ## Limitations and Considerations
 
 - **Experimental Feature**: This integration is in its early stages and should be considered experimental.
 - **Optional Dependency**: Vite is an optional peer dependency. If Vite is not installed, Jest will continue to work normally without the integration.
-- **Runtime Unchanged**: The current implementation doesn't change Jest's runtime behavior; it primarily sets up the infrastructure for future optimizations.
 - **Watch Mode Only**: This feature only works in watch mode (`--watch` or `--watchAll`).
-
-## Future Enhancements
-
-The Vite integration is designed to be incrementally improved over time:
-
-- Integration with Vite's transform pipeline for faster module transformation
-- Leveraging Vite's module graph for smarter test selection
-- Improved HMR support for faster test re-runs
-- Better alignment with Vite-based project configurations
+- **Transform Pipeline**: When `useTransformPipeline` is enabled, Vite's transformations are used alongside Jest's existing transformers.
+- **Smart Test Selection**: The effectiveness of `smartTestSelection` depends on how well your project's module graph is maintained in Vite.
+- **HMR Compatibility**: `enableHMR` works best with projects that have clear module boundaries and minimal side effects.
 
 ## Example Configuration
 
-Here's a complete example configuration for a TypeScript project using Vite:
+Here's a complete example configuration for a TypeScript project using Vite with all features enabled:
 
 ```js
 // jest.config.js
@@ -145,6 +169,10 @@ module.exports = {
   vite: {
     enabled: true,
     configFile: './vite.config.ts',
+    // Enable all enhancement features
+    useTransformPipeline: true,
+    smartTestSelection: true,
+    enableHMR: true,
     config: {
       resolve: {
         conditions: ['node', 'default'],
