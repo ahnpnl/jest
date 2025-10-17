@@ -32,7 +32,7 @@ yarn add --dev vite
 
 ## Configuration
 
-Add the `future.experimental_vite` configuration option to your Jest config. The configuration accepts any Vite configuration options:
+Add the `future.experimental_vite` configuration option to your Jest config. The configuration accepts Vite options inspired by Vitest's testing-focused approach:
 
 ```typescript
 // jest.config.ts
@@ -42,22 +42,42 @@ const config: Config = {
   // ... other Jest config options
   future: {
     experimental_vite: {
-      // Server configuration
-      server: {
-        port: 5173,
-        strictPort: false,
-      },
+      // Root directory for module resolution
+      root: process.cwd(),
       
-      // Module resolution
-      resolve: {
-        conditions: ['node', 'default'],
-        alias: {
-          '@': './src',
+      // Server configuration for dependency handling
+      server: {
+        deps: {
+          // Inline ESM dependencies that need transformation
+          inline: ['some-esm-package'],
+          // Fallback to CJS for legacy dependencies
+          fallbackCJS: true,
+        },
+        fs: {
+          // File system access configuration
+          strict: false,
         },
       },
       
-      // Root directory
-      root: process.cwd(),
+      // Module resolution (critical for testing)
+      resolve: {
+        // Export conditions for Node.js environment
+        conditions: ['node', 'default', 'development'],
+        // Path aliases
+        alias: {
+          '@': './src',
+        },
+        // Extensions to resolve
+        extensions: ['.mts', '.cts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+      },
+      
+      // Dependency optimization for performance
+      optimizeDeps: {
+        // Pre-bundle these dependencies
+        include: ['react', 'react-dom'],
+        // Exclude from bundling
+        exclude: [],
+      },
     },
   },
 };
@@ -77,41 +97,57 @@ The following features are **enabled automatically** when you use Vite integrati
 
 The `experimental_vite` option accepts any Vite configuration that would be passed to Vite's `createServer` API. Jest merges your configuration with sensible defaults optimized for testing.
 
-#### Commonly Used Options
+#### Phase 1 Options (Vitest-Inspired)
 
 ##### Server Configuration
 
-**`server.port`** (number, default: 5173)
-Port number for the Vite dev server.
+**`server.deps.inline`** (string[] | RegExp[])
+Dependencies to inline and transform. Useful for ESM-only packages.
 
-**`server.strictPort`** (boolean, default: false)
-Whether to exit if the port is already in use.
+**`server.deps.external`** (string[] | RegExp[])
+Dependencies to externalize and not transform.
 
-**`server.host`** (string | boolean)
-Specify server host address.
+**`server.deps.fallbackCJS`** (boolean, default: false)
+Fallback to CJS for dependencies that fail ESM transformation.
 
-##### Module Resolution
+**`server.fs.allow`** (string[])
+Directories allowed for file system access.
+
+**`server.fs.strict`** (boolean, default: true)
+Enable strict file system mode for security.
+
+##### Module Resolution (Critical for Testing)
 
 **`resolve.conditions`** (string[], default: ['node', 'default'])
-Custom export conditions for module resolution.
+Export conditions for module resolution. Common for testing: `['node', 'default', 'development']`.
 
 **`resolve.alias`** (Record<string, string>)
-Path aliases for module resolution.
+Path aliases for module resolution (e.g., `'@': './src'`).
 
 **`resolve.extensions`** (string[])
-File extensions to resolve (e.g., ['.ts', '.tsx', '.js']).
+File extensions to resolve. Default: `['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']`.
+
+**`resolve.mainFields`** (string[])
+Package.json fields to resolve. Default: `['module', 'jsnext:main', 'jsnext']`.
+
+##### Dependency Optimization
+
+**`optimizeDeps.include`** (string[])
+Dependencies to pre-bundle and cache for better performance.
+
+**`optimizeDeps.exclude`** (string[])
+Dependencies to exclude from pre-bundling.
+
+**`optimizeDeps.esbuildOptions`** (object)
+esbuild options for dependency optimization (e.g., `target: 'es2020'`).
 
 ##### Root and Base
 
 **`root`** (string)
-Project root directory (default: current working directory).
+Project root directory for module resolution (default: current working directory).
 
 **`base`** (string)
-
-Type: `object`  
-Optional
-
-Additional Vite configuration options to merge with the default configuration. See [Vite's configuration documentation](https://vitejs.dev/config/) for available options.
+Base public path when serving assets.
 
 For a complete list of available options and phased rollout plan, see [Vite Configuration Phases](./ViteConfigPhases.md).
 

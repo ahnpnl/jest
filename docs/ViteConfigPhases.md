@@ -4,26 +4,36 @@ This document outlines the phased approach for supporting Vite configuration opt
 
 ## Phase 1: Core Configuration (Current Implementation)
 
-**Goal**: Provide essential Vite options that enable basic watch mode functionality and module resolution.
+**Goal**: Provide essential Vite options that enable basic watch mode functionality and module resolution, inspired by Vitest's testing-focused configuration.
 
 ### Supported Options
 
-The following Vite configuration options are supported and recommended for testing:
+The following Vite configuration options are supported and recommended for testing (based on Vitest's proven approach):
 
 #### Server Configuration
-- **`server.port`**: Dev server port (default: 5173)
-- **`server.strictPort`**: Whether to exit if port is already in use (default: false)
-- **`server.host`**: Server host address
-- **`server.hmr`**: HMR configuration (enabled by default)
+- **`server.deps.inline`**: Array of dependencies to inline (useful for CJS/ESM interop)
+- **`server.deps.external`**: Dependencies to exclude from optimization
+- **`server.deps.fallbackCJS`**: Fallback to CJS for legacy dependencies
+- **`server.fs.allow`**: Restrict file system access to specific directories (security)
+- **`server.fs.strict`**: Enable strict file system mode
 
-#### Module Resolution
+#### Module Resolution (Critical for Testing)
 - **`resolve.conditions`**: Custom export conditions (default: ['node', 'default'])
-- **`resolve.alias`**: Path aliases for module resolution
-- **`resolve.extensions`**: File extensions to resolve
+  - Common for testing: ['node', 'default', 'development']
+- **`resolve.alias`**: Path aliases for module resolution (e.g., `@/` -> `./src/`)
+- **`resolve.extensions`**: File extensions to resolve (default: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'])
+- **`resolve.mainFields`**: Package.json fields to resolve (default: ['module', 'jsnext:main', 'jsnext'])
+
+#### Dependency Optimization (Critical for Performance)
+- **`optimizeDeps.include`**: Dependencies to pre-bundle and cache
+- **`optimizeDeps.exclude`**: Dependencies to exclude from pre-bundling
+- **`optimizeDeps.esbuildOptions`**: esbuild options for dependency optimization
+  - `target`: ECMAScript target (e.g., 'es2020')
+  - `supported`: Feature support overrides
 
 #### Root and Base
-- **`root`**: Project root directory
-- **`base`**: Base public path
+- **`root`**: Project root directory (critical for resolving modules)
+- **`base`**: Base public path when serving assets
 
 ### Built-in Features (OOTB)
 
@@ -40,22 +50,52 @@ import type {Config} from 'jest';
 const config: Config = {
   future: {
     experimental_vite: {
-      // Server configuration
-      server: {
-        port: 5173,
-        strictPort: false,
-      },
+      // Root directory - where Vite will resolve modules from
+      root: process.cwd(),
       
-      // Module resolution
-      resolve: {
-        conditions: ['node', 'default'],
-        alias: {
-          '@': './src',
+      // Server configuration (for dependency handling)
+      server: {
+        deps: {
+          // Inline dependencies that need transformation
+          inline: ['some-esm-only-package'],
+          // Externalize dependencies that should not be transformed
+          external: ['some-native-module'],
+          // Fallback to CJS for legacy dependencies
+          fallbackCJS: true,
+        },
+        fs: {
+          // Allow access to workspace root and node_modules
+          allow: ['.', '../node_modules'],
+          strict: false,
         },
       },
       
-      // Root directory
-      root: process.cwd(),
+      // Module resolution (critical for testing)
+      resolve: {
+        // Export conditions for Node.js environment
+        conditions: ['node', 'default', 'development'],
+        // Path aliases
+        alias: {
+          '@': './src',
+          '@tests': './tests',
+        },
+        // Extensions to resolve
+        extensions: ['.mts', '.cts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+        // Package.json fields
+        mainFields: ['module', 'jsnext:main', 'jsnext'],
+      },
+      
+      // Dependency optimization (improves performance)
+      optimizeDeps: {
+        // Pre-bundle these dependencies
+        include: ['react', 'react-dom'],
+        // Don't bundle these
+        exclude: ['@testing-library/react'],
+        // esbuild configuration for optimization
+        esbuildOptions: {
+          target: 'es2020',
+        },
+      },
     },
   },
 };
@@ -63,23 +103,23 @@ const config: Config = {
 export default config;
 ```
 
-## Phase 2: Advanced Module Handling (Future)
+## Phase 2: Plugin System and Transformations (Future)
 
-**Goal**: Support advanced module resolution and transformation options.
+**Goal**: Support Vite plugins and advanced transformation options.
 
 ### Planned Options
-
-- **`optimizeDeps`**: Dependency optimization configuration
-  - `include`: Dependencies to pre-bundle
-  - `exclude`: Dependencies to exclude from pre-bundling
-  - `esbuildOptions`: esbuild options for dependency pre-bundling
 
 - **`plugins`**: Vite plugins for custom transformations
   - Support for common plugins like `@vitejs/plugin-react`, `@vitejs/plugin-vue`
   - Custom plugin integration
+  - Plugin configuration and ordering
 
-- **`build.sourcemap`**: Source map generation
-- **`build.target`**: Browser compatibility targets
+- **`build.sourcemap`**: Source map generation for debugging
+- **`build.target`**: ECMAScript target for transformations
+- **`esbuild`**: Global esbuild transformation options
+  - `jsxFactory`: JSX factory function
+  - `jsxFragment`: JSX fragment
+  - `jsxInject`: Automatic JSX runtime injection
 
 ## Phase 3: Advanced Features (Future)
 

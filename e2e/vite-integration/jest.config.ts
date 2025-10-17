@@ -16,18 +16,37 @@ const config: Config = {
   // @ts-expect-error - experimental_vite is not yet in the official types
   future: {
     experimental_vite: {
-      // Phase 1: Essential Vite configuration options
-      // Users can pass any Vite config options they need
+      // Phase 1: Essential Vite configuration options (inspired by Vitest)
       
-      // Server configuration
+      // Root directory for module resolution
+      root: process.cwd(),
+      
+      // Server configuration for dependency handling
       server: {
-        port: 5173,
-        strictPort: false,
+        deps: {
+          // Inline dependencies that need transformation
+          inline: [],
+          // Fallback to CJS for legacy dependencies
+          fallbackCJS: true,
+        },
+        fs: {
+          // Allow file system access
+          strict: false,
+        },
       },
       
-      // Resolve configuration - critical for module resolution
+      // Module resolution configuration
       resolve: {
-        conditions: ['node', 'default'],
+        // Export conditions for Node.js testing environment
+        conditions: ['node', 'default', 'development'],
+        // File extensions to resolve
+        extensions: ['.mts', '.cts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+      },
+      
+      // Dependency optimization for better performance
+      optimizeDeps: {
+        include: [],
+        exclude: [],
       },
     },
   },
