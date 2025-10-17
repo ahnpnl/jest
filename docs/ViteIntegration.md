@@ -32,27 +32,28 @@ yarn add --dev vite
 
 ## Configuration
 
-Add the `vite` configuration option to your Jest config:
+Add the `future.experimental_vite` configuration option to your Jest config:
 
 ```js
 // jest.config.js
 module.exports = {
   // ... other Jest config options
-  vite: {
-    enabled: true,
-    // Optional: specify a custom Vite config file
-    configFile: './vite.config.ts',
-    // Optional: specify a custom port for the dev server
-    port: 5173,
-    // Optional: enable Vite transform pipeline integration
-    useTransformPipeline: true,
-    // Optional: enable smart test selection based on module graph
-    smartTestSelection: true,
-    // Optional: enable Hot Module Replacement (HMR)
-    enableHMR: true,
-    // Optional: additional Vite configuration
-    config: {
-      // Custom Vite options
+  future: {
+    experimental_vite: {
+      // Optional: specify a custom Vite config file
+      configFile: './vite.config.ts',
+      // Optional: specify a custom port for the dev server
+      port: 5173,
+      // Optional: enable Vite transform pipeline integration
+      useTransformPipeline: true,
+      // Optional: enable smart test selection based on module graph
+      smartTestSelection: true,
+      // Optional: enable Hot Module Replacement (HMR)
+      enableHMR: true,
+      // Optional: additional Vite configuration
+      config: {
+        // Custom Vite options
+      },
     },
   },
 };
@@ -60,12 +61,7 @@ module.exports = {
 
 ### Configuration Options
 
-#### `enabled`
-
-Type: `boolean`  
-Default: `false`
-
-Enables or disables the Vite dev server in watch mode.
+The Vite integration is enabled by adding the `future.experimental_vite` option to your Jest configuration. All settings within this option are optional and will use sensible defaults if not specified.
 
 #### `configFile`
 
@@ -166,16 +162,17 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': 'ts-jest',
   },
-  vite: {
-    enabled: true,
-    configFile: './vite.config.ts',
-    // Enable all enhancement features
-    useTransformPipeline: true,
-    smartTestSelection: true,
-    enableHMR: true,
-    config: {
-      resolve: {
-        conditions: ['node', 'default'],
+  future: {
+    experimental_vite: {
+      configFile: './vite.config.ts',
+      // Enable all enhancement features
+      useTransformPipeline: true,
+      smartTestSelection: true,
+      enableHMR: true,
+      config: {
+        resolve: {
+          conditions: ['node', 'default'],
+        },
       },
     },
   },

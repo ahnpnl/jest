@@ -234,11 +234,14 @@ export default async function watch(
   // Initialize Vite dev server manager
   let viteDevServerManager: ViteDevServerManager | null = null;
   if (contexts.length > 0) {
-    const viteConfig = getViteWatchModeConfig(contexts[0].config);
-    if (viteConfig.enabled) {
+    const {config: viteConfig, enabled} = getViteWatchModeConfig(
+      contexts[0].config,
+    );
+    if (enabled) {
       viteDevServerManager = new ViteDevServerManager(
         viteConfig,
         contexts[0].config.rootDir,
+        enabled,
       );
       await viteDevServerManager.start();
     }

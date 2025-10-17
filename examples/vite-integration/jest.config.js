@@ -14,35 +14,35 @@
 module.exports = {
   displayName: 'vite-integration-example',
 
+  // Vite integration configuration with all enhancements enabled
+  // Using the future.experimental_vite feature flag approach
+  future: {
+    experimental_vite: {
+      // Optional: Additional Vite configuration
+      // config: {
+      //   resolve: {
+      //     conditions: ['node', 'default'],
+      //   },
+      // },
+
+      // Optional: Specify a custom Vite config file
+      // configFile: './vite.config.js',
+
+      // Enable Hot Module Replacement for faster test re-runs
+      enableHMR: true,
+
+      // Optional: Specify a custom port for the Vite dev server
+      // port: 5173,
+
+      // Enable smart test selection to run only affected tests
+      smartTestSelection: true,
+
+      // Enable Vite's transform pipeline for faster module transformation
+      useTransformPipeline: true,
+    },
+  },
+
   // Standard Jest configuration
   testEnvironment: 'node',
   testMatch: ['**/__tests__/**/*.test.js'],
-
-  // Vite integration configuration with all enhancements enabled
-  vite: {
-    // Enable Vite dev server in watch mode
-    enabled: true,
-
-    // Enable Vite's transform pipeline for faster module transformation
-    useTransformPipeline: true,
-
-    // Enable smart test selection to run only affected tests
-    smartTestSelection: true,
-
-    // Enable Hot Module Replacement for faster test re-runs
-    enableHMR: true,
-
-    // Optional: Specify a custom Vite config file
-    // configFile: './vite.config.js',
-
-    // Optional: Specify a custom port for the Vite dev server
-    // port: 5173,
-
-    // Optional: Additional Vite configuration
-    // config: {
-    //   resolve: {
-    //     conditions: ['node', 'default'],
-    //   },
-    // },
-  },
 };

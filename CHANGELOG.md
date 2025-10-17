@@ -3,7 +3,7 @@
 ### Features
 
 - `[jest-config]` Add `defineConfig` and `mergeConfig` helpers for type-safe Jest config ([#15844](https://github.com/jestjs/jest/pull/15844))
-- `[jest-core]` Add experimental Vite dev server integration for watch mode to improve performance and developer experience
+- `[jest-core]` Add experimental Vite dev server integration for watch mode via `future.experimental_vite` feature flag to improve performance and developer experience
 - `[jest-core]` Implement Vite transform pipeline integration for faster module transformation
 - `[jest-core]` Implement smart test selection using Vite's module graph to run only affected tests
 - `[jest-core]` Implement Hot Module Replacement (HMR) support for faster test re-runs

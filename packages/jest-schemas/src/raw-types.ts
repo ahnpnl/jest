@@ -350,15 +350,18 @@ export const InitialOptions = Type.Partial(
     ),
     workerIdleMemoryLimit: Type.Union([Type.Number(), Type.String()]),
     workerThreads: Type.Boolean(),
-    vite: Type.Partial(
+    future: Type.Partial(
       Type.Object({
-        config: Type.Record(Type.String(), Type.Unknown()),
-        configFile: Type.String(),
-        enableHMR: Type.Boolean(),
-        enabled: Type.Boolean(),
-        port: Type.Number(),
-        smartTestSelection: Type.Boolean(),
-        useTransformPipeline: Type.Boolean(),
+        experimental_vite: Type.Partial(
+          Type.Object({
+            config: Type.Record(Type.String(), Type.Unknown()),
+            configFile: Type.String(),
+            enableHMR: Type.Boolean(),
+            port: Type.Number(),
+            smartTestSelection: Type.Boolean(),
+            useTransformPipeline: Type.Boolean(),
+          }),
+        ),
       }),
     ),
   }),

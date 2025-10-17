@@ -11,8 +11,6 @@ import type {Config} from '@jest/types';
  * Configuration options for the Vite dev server in watch mode
  */
 export type ViteWatchModeConfig = {
-  /** Enable Vite dev server in watch mode */
-  enabled: boolean;
   /** Vite config file path */
   configFile?: string;
   /** Vite server port */
@@ -40,17 +38,23 @@ export default class ViteDevServerManager {
   private projectRoot: string;
   private moduleGraphCache = new Map<string, Set<string>>();
   private transformCache = new Map<string, string>();
+  private enabled: boolean;
 
-  constructor(config: ViteWatchModeConfig, projectRoot: string) {
+  constructor(
+    config: ViteWatchModeConfig,
+    projectRoot: string,
+    enabled: boolean,
+  ) {
     this.config = config;
     this.projectRoot = projectRoot;
+    this.enabled = enabled;
   }
 
   /**
    * Starts the Vite dev server for watch mode
    */
   async start(): Promise<void> {
-    if (!this.config.enabled) {
+    if (!this.enabled) {
       return;
     }
 
@@ -347,10 +351,11 @@ export default class ViteDevServerManager {
    */
   private async loadVite(): Promise<any> {
     try {
-      // Try to require/import vite dynamically, but don't fail if it's not available
-      // Using dynamic require to avoid TypeScript compilation errors with optional peer deps
-
-      return require('vite');
+      // Vite is an ESM module, so we need to use dynamic import
+      // This requires Jest to be configured with ESM support
+      // @ts-expect-error - Vite is an optional peer dependency
+      const viteModule = await import('vite');
+      return viteModule;
     } catch {
       return null;
     }
@@ -410,23 +415,27 @@ export default class ViteDevServerManager {
 /**
  * Helper to extract Vite watch mode config from Jest config
  */
-export function getViteWatchModeConfig(
-  jestConfig: Config.ProjectConfig,
-): ViteWatchModeConfig {
-  // Check for vite configuration in Jest config
-  const viteConfig = (jestConfig as any).vite;
+export function getViteWatchModeConfig(jestConfig: Config.ProjectConfig): {
+  config: ViteWatchModeConfig;
+  enabled: boolean;
+} {
+  // Check for future.experimental_vite configuration in Jest config
+  const futureConfig = (jestConfig as any).future;
+  const viteConfig = futureConfig?.experimental_vite;
 
   if (!viteConfig || typeof viteConfig !== 'object') {
-    return {enabled: false};
+    return {config: {}, enabled: false};
   }
 
   return {
-    configFile: viteConfig.configFile,
-    enableHMR: viteConfig.enableHMR === true,
-    enabled: viteConfig.enabled === true,
-    port: viteConfig.port,
-    smartTestSelection: viteConfig.smartTestSelection === true,
-    useTransformPipeline: viteConfig.useTransformPipeline === true,
-    viteConfig: viteConfig.config,
+    config: {
+      configFile: viteConfig.configFile,
+      enableHMR: viteConfig.enableHMR === true,
+      port: viteConfig.port,
+      smartTestSelection: viteConfig.smartTestSelection === true,
+      useTransformPipeline: viteConfig.useTransformPipeline === true,
+      viteConfig: viteConfig.config,
+    },
+    enabled: true,
   };
 }
