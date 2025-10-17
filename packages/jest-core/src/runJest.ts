@@ -29,6 +29,7 @@ import {JestHook, type JestHookEmitter, type TestWatcher} from 'jest-watcher';
 import type FailedTestsCache from './FailedTestsCache';
 import SearchSource from './SearchSource';
 import {type TestSchedulerContext, createTestScheduler} from './TestScheduler';
+import {WorkspaceDependencyResolver} from './WorkspaceDependencyResolver';
 import collectNodeHandles, {
   type HandleCollectionResult,
 } from './collectHandles';
@@ -46,6 +47,7 @@ const getTestPaths = async (
   jestHooks: JestHookEmitter,
   filter?: Filter,
   otherSearchSources?: Array<SearchSource>,
+  workspaceResolver?: WorkspaceDependencyResolver,
 ) => {
   const data = await source.getTestPaths(
     globalConfig,
@@ -53,6 +55,7 @@ const getTestPaths = async (
     changedFiles,
     filter,
     otherSearchSources,
+    workspaceResolver,
   );
 
   if (data.tests.length === 0 && globalConfig.onlyChanged && data.noSCM) {
@@ -187,6 +190,17 @@ export default async function runJest({
 
   const searchSources = contexts.map(context => new SearchSource(context));
 
+  // Create WorkspaceDependencyResolver if we have multiple projects
+  let workspaceResolver: WorkspaceDependencyResolver | undefined;
+  if (globalConfig.findRelatedTests && searchSources.length > 1) {
+    workspaceResolver = new WorkspaceDependencyResolver();
+    for (const [i, context] of contexts.entries()) {
+      const dependencyResolver =
+        await searchSources[i].getOrBuildDependencyResolver();
+      workspaceResolver.addProject(context, dependencyResolver);
+    }
+  }
+
   performance.mark('jest/getTestPaths:start');
   const testRunData: TestRunData = await Promise.all(
     contexts.map(async (context, index) => {
@@ -204,6 +218,7 @@ export default async function runJest({
         jestHooks,
         filter,
         otherSearchSources,
+        workspaceResolver,
       );
       allTests = [...allTests, ...matches.tests];
 

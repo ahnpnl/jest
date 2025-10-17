@@ -17,6 +17,7 @@ import {escapePathForRegex} from 'jest-regex-util';
 import {DependencyResolver} from 'jest-resolve-dependencies';
 import {buildSnapshotResolver} from 'jest-snapshot';
 import {globsToMatcher} from 'jest-util';
+import type {WorkspaceDependencyResolver} from './WorkspaceDependencyResolver';
 import type {Filter, Stats, TestPathCases} from './types';
 
 export type SearchResult = {
@@ -102,7 +103,7 @@ export default class SearchSource {
     }
   }
 
-  private async _getOrBuildDependencyResolver(): Promise<DependencyResolver> {
+  async getOrBuildDependencyResolver(): Promise<DependencyResolver> {
     if (!this._dependencyResolver) {
       this._dependencyResolver = new DependencyResolver(
         this._context.resolver,
@@ -179,12 +180,24 @@ export default class SearchSource {
     allPaths: Set<string>,
     collectCoverage: boolean,
     otherSearchSources?: Array<SearchSource>,
+    workspaceResolver?: WorkspaceDependencyResolver,
   ): Promise<SearchResult> {
-    const dependencyResolver = await this._getOrBuildDependencyResolver();
+    const dependencyResolver = await this.getOrBuildDependencyResolver();
 
     let expandedPaths = allPaths;
 
-    if (otherSearchSources && otherSearchSources.length > 0) {
+    // Use WorkspaceDependencyResolver if provided for better cross-project support
+    if (workspaceResolver) {
+      const additionalPaths =
+        workspaceResolver.findFilesInProjectDependingOnChangedPaths(
+          this._context,
+          allPaths,
+        );
+      if (additionalPaths.size > 0) {
+        expandedPaths = new Set([...allPaths, ...additionalPaths]);
+      }
+    } else if (otherSearchSources && otherSearchSources.length > 0) {
+      // Fallback to simpler approach if no WorkspaceDependencyResolver
       const additionalPaths =
         await this._findFilesInThisProjectDependingOnOtherProjects(
           allPaths,
@@ -252,7 +265,7 @@ export default class SearchSource {
   ): Promise<Set<string>> {
     const changedPathsArray = [...changedPaths].map(p => path.resolve(p));
     const filesInThisProject = new Set<string>();
-    const dependencyResolver = await this._getOrBuildDependencyResolver();
+    const dependencyResolver = await this.getOrBuildDependencyResolver();
 
     const otherProjectPackageNames = new Map<string, string>();
     for (const otherSource of otherSearchSources) {
@@ -265,7 +278,7 @@ export default class SearchSource {
         if (pkgJson.name) {
           otherProjectPackageNames.set(
             pkgJson.name,
-            otherSource._context.config.rootDir,
+            path.resolve(otherSource._context.config.rootDir),
           );
         }
       } catch {
@@ -294,7 +307,14 @@ export default class SearchSource {
         for (const [pkgName, pkgRoot] of otherProjectPackageNames) {
           if (rawDep === pkgName || rawDep.startsWith(`${pkgName}/`)) {
             for (const changedPath of changedPathsArray) {
-              if (changedPath.startsWith(pkgRoot + path.sep)) {
+              const normalizedChangedPath = path.normalize(changedPath);
+              const normalizedPkgRoot = path.normalize(pkgRoot);
+              if (
+                normalizedChangedPath.startsWith(
+                  normalizedPkgRoot + path.sep,
+                ) ||
+                normalizedChangedPath === normalizedPkgRoot
+              ) {
                 filesInThisProject.add(file);
                 break;
               }
@@ -322,6 +342,7 @@ export default class SearchSource {
     paths: Array<string>,
     collectCoverage: boolean,
     otherSearchSources?: Array<SearchSource>,
+    workspaceResolver?: WorkspaceDependencyResolver,
   ): Promise<SearchResult> {
     if (Array.isArray(paths) && paths.length > 0) {
       const resolvedPaths = paths.map(p =>
@@ -331,6 +352,7 @@ export default class SearchSource {
         new Set(resolvedPaths),
         collectCoverage,
         otherSearchSources,
+        workspaceResolver,
       );
     }
     return {tests: []};
@@ -352,6 +374,7 @@ export default class SearchSource {
     projectConfig: Config.ProjectConfig,
     changedFiles?: ChangedFiles,
     otherSearchSources?: Array<SearchSource>,
+    workspaceResolver?: WorkspaceDependencyResolver,
   ): Promise<SearchResult> {
     if (globalConfig.onlyChanged) {
       if (!changedFiles) {
@@ -377,6 +400,7 @@ export default class SearchSource {
         paths,
         globalConfig.collectCoverage,
         otherSearchSources,
+        workspaceResolver,
       );
     } else {
       return this.findMatchingTests(
@@ -415,12 +439,14 @@ export default class SearchSource {
     changedFiles?: ChangedFiles,
     filter?: Filter,
     otherSearchSources?: Array<SearchSource>,
+    workspaceResolver?: WorkspaceDependencyResolver,
   ): Promise<SearchResult> {
     const searchResult = await this._getTestPaths(
       globalConfig,
       projectConfig,
       changedFiles,
       otherSearchSources,
+      workspaceResolver,
     );
 
     const filterPath = globalConfig.filter;
@@ -454,7 +480,7 @@ export default class SearchSource {
       return [];
     }
     const {changedFiles} = changedFilesInfo;
-    const dependencyResolver = await this._getOrBuildDependencyResolver();
+    const dependencyResolver = await this.getOrBuildDependencyResolver();
     const relatedSourcesSet = new Set<string>();
     for (const filePath of changedFiles) {
       if (this.isTestFilePath(filePath)) {
