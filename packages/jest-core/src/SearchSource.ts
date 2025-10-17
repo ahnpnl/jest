@@ -307,12 +307,10 @@ export default class SearchSource {
         for (const [pkgName, pkgRoot] of otherProjectPackageNames) {
           if (rawDep === pkgName || rawDep.startsWith(`${pkgName}/`)) {
             for (const changedPath of changedPathsArray) {
-              const normalizedChangedPath = path.normalize(changedPath);
-              const normalizedPkgRoot = path.normalize(pkgRoot);
+              const normalizedChangedPath = normalizePosix(changedPath);
+              const normalizedPkgRoot = normalizePosix(pkgRoot);
               if (
-                normalizedChangedPath.startsWith(
-                  normalizedPkgRoot + path.sep,
-                ) ||
+                normalizedChangedPath.startsWith(`${normalizedPkgRoot}/`) ||
                 normalizedChangedPath === normalizedPkgRoot
               ) {
                 filesInThisProject.add(file);

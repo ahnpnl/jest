@@ -16,6 +16,10 @@ interface WorkspaceProject {
   dependencyResolver: DependencyResolver;
 }
 
+function normalizePosix(filePath: string) {
+  return filePath.replaceAll('\\', '/');
+}
+
 export class WorkspaceDependencyResolver {
   private projects: Array<WorkspaceProject> = [];
 
@@ -92,11 +96,11 @@ export class WorkspaceDependencyResolver {
             ) {
               // Check if any changed path is in this project
               for (const changedPath of changedPathsArray) {
-                const normalizedChangedPath = path.normalize(changedPath);
-                const normalizedProjectRoot = path.normalize(projectRoot);
+                const normalizedChangedPath = normalizePosix(changedPath);
+                const normalizedProjectRoot = normalizePosix(projectRoot);
                 if (
                   normalizedChangedPath.startsWith(
-                    normalizedProjectRoot + path.sep,
+                    `${normalizedProjectRoot}/`,
                   ) ||
                   normalizedChangedPath === normalizedProjectRoot
                 ) {
