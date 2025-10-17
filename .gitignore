@@ -69,3 +69,5 @@ optimized-benchmark.js
 PERFORMANCE_TEST_SUMMARY.md
 VITEST_RESEARCH.md
 OPTIMIZATION_ANALYSIS.md
+comprehensive-benchmark.js
+GLOBAL_GRAPH_ANALYSIS.md
