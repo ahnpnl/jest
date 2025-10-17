@@ -202,7 +202,7 @@ ViteDevServerManager (start server)
 
 ## Code Organization
 
-- **Configuration**: `jest-config/src/getDefaultViteConfig.ts` - Default Vite config helper
+- **Configuration**: `jest-config/src/defineViteConfig.ts` - Default Vite config helper
 - **Schema**: `jest-schemas/src/raw-types.ts` - Configuration validation
 - **Manager**: `jest-core/src/ViteDevServerManager.ts` - Vite server lifecycle
 - **Integration**: `jest-core/src/watch.ts` - Watch mode integration point

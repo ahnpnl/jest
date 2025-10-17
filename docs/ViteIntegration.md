@@ -50,17 +50,17 @@ Add the `future.experimental_vite` configuration option to your Jest config.
 
 ### Using the Default Config Helper (Recommended)
 
-Jest provides a `getDefaultViteConfig()` helper that returns sensible defaults for testing:
+Jest provides a `defineViteConfig()` helper that returns sensible defaults for testing:
 
 ```typescript
 // jest.config.ts
 import type {Config} from 'jest';
-import {getDefaultViteConfig} from 'jest-config';
+import {defineViteConfig} from 'jest-config';
 
 const config: Config = {
   // ... other Jest config options
   future: {
-    experimental_vite: getDefaultViteConfig(),
+    experimental_vite: defineViteConfig(),
   },
 };
 
@@ -129,9 +129,9 @@ You can also extend the default config with your custom options:
 ```typescript
 // jest.config.ts
 import type {Config} from 'jest';
-import {getDefaultViteConfig} from 'jest-config';
+import {defineViteConfig} from 'jest-config';
 
-const defaultViteConfig = getDefaultViteConfig();
+const defaultViteConfig = defineViteConfig();
 
 const config: Config = {
   // ... other Jest config options
