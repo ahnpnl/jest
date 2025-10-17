@@ -57,7 +57,7 @@ const hasSCM = (changedFilesInfo: ChangedFiles) => {
 };
 
 function normalizePosix(filePath: string) {
-  return filePath.replaceAll('\\', '/');
+  return filePath.replace(/\\/g, '/');
 }
 
 export default class SearchSource {

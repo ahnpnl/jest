@@ -8,7 +8,6 @@
 import * as path from 'path';
 import type {TestContext} from '@jest/test-result';
 import type {DependencyResolver} from 'jest-resolve-dependencies';
-import type {IHasteFS} from 'jest-haste-map';
 
 /**
  * Module node in the global dependency graph.
@@ -36,10 +35,6 @@ interface ProjectMetadata {
   dependencyResolver: DependencyResolver;
   /** Quick lookup for package name to project */
   packageName: string | null;
-}
-
-function normalizePosix(filePath: string): string {
-  return filePath.replaceAll('\\', '/');
 }
 
 /**
@@ -213,13 +208,14 @@ export class GlobalDependencyGraph {
    * When a file imports '@workspace/pkg', we need to link it to files in that project.
    */
   private resolveCrossProjectDependencies(
-    sourceNode: ModuleNode,
+    _sourceNode: ModuleNode,
     rawDependencies: Array<string>,
   ): void {
     for (const rawDep of rawDependencies) {
       // Check if this is a workspace package import
-      for (const [packageName, project] of this.packageToProject) {
-        if (rawDep === packageName || rawDep.startsWith(`${packageName}/`)) {
+      for (const [packageName] of this.packageToProject) {
+        const pkgPrefix = `${packageName}/`;
+        if (rawDep === packageName || rawDep.indexOf(pkgPrefix) === 0) {
           // This file imports from another workspace package
           // We don't know the exact file, but we can mark this relationship
           // for quick filtering later

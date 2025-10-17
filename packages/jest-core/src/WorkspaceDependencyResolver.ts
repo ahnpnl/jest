@@ -17,7 +17,7 @@ interface WorkspaceProject {
 }
 
 function normalizePosix(filePath: string) {
-  return filePath.replaceAll('\\', '/');
+  return filePath.replace(/\\/g, '/');
 }
 
 export class WorkspaceDependencyResolver {
