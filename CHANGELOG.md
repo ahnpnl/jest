@@ -3,6 +3,7 @@
 ### Features
 
 - `[jest-config]` Add `defineConfig` and `mergeConfig` helpers for type-safe Jest config ([#15844](https://github.com/jestjs/jest/pull/15844))
+- `[jest-core]` Add experimental Vite dev server integration for watch mode to improve performance and developer experience
 
 ### Fixes
 
