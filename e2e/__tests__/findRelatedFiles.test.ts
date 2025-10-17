@@ -37,6 +37,64 @@ describe('--findRelatedTests flag', () => {
     expect(stderr).toMatch(summaryMsg);
   });
 
+  test('run tests related to filename when using projects config', () => {
+    writeFiles(DIR, {
+      '.watchmanconfig': '{}',
+      'package.json': JSON.stringify({
+        jest: {
+          projects: ['<rootDir>/packages/*'],
+          testEnvironment: 'node',
+        },
+        private: true,
+      }),
+      'packages/app/index.js': `
+        const Button = require('@test/button');
+
+        Button('Hello');
+      `,
+      'packages/app/index.spec.js': `
+        const App = require('.');
+
+        describe('App', () => {
+          it('should render', () => {
+            expect(App()).toContain('Click me!');
+          });
+        });
+      `,
+      'packages/app/package.json': JSON.stringify({
+        jest: {},
+        name: '@test/app',
+        version: '0.0.0',
+      }),
+      'packages/button/index.js': `
+        const Button = (text) => text;
+        module.exports = Button;
+      `,
+      'packages/button/index.spec.js': `
+        const Button = require('.');
+
+        test('Button', () => {
+          expect(Button('Hello')).toContain('Hello');
+        });
+      `,
+      'packages/button/package.json': JSON.stringify({
+        jest: {},
+        name: '@test/button',
+        version: '0.0.0',
+      }),
+    });
+
+    const {stderr} = runJest(DIR, [
+      '--findRelatedTests',
+      'packages/button/index.js',
+    ]);
+    expect(stderr).toMatch('PASS packages/button/index.spec.js');
+    expect(stderr).toMatch('PASS packages/app/index.spec.js');
+    expect(stderr).toMatch(
+      'Ran all test suites related to files matching packages/button/index.js.',
+    );
+  });
+
   test('runs tests related to uppercased filename on case-insensitive os', () => {
     if (process.platform !== 'win32') {
       // This test is Windows specific, skip it on other platforms.
