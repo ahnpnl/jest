@@ -1,20 +1,34 @@
 ---
 id: vite-integration
-title: Vite Integration for Watch Mode
+title: Vite Integration for Jest
 ---
 
-# Vite Integration for Jest Watch Mode
+# Vite Integration for Jest
 
-Jest can leverage Vite's dev server in watch mode to improve performance and developer experience. This integration is inspired by Angular CLI's approach to Vite integration.
+Jest can leverage Vite's dev server in both watch and non-watch modes to improve performance and developer experience. This integration is inspired by Angular CLI's approach to Vite integration.
 
 ## Overview
 
-When enabled, Jest will start a Vite dev server alongside the watch mode process. This allows Jest to:
+When enabled, Jest will start a Vite dev server alongside the test execution process. This allows Jest to:
 
 - Leverage Vite's module graph for efficient dependency tracking
 - Use Vite's fast transform pipeline for module transformation
-- Take advantage of Vite's HMR (Hot Module Replacement) capabilities
+- Take advantage of Vite's HMR (Hot Module Replacement) capabilities (watch mode)
 - Benefit from Vite's optimized module resolution
+
+### Execution Modes
+
+**Watch Mode** (`jest --watch` or `jest --watchAll`):
+- Vite server runs throughout the watch session
+- HMR enables fast test re-runs on file changes
+- Smart test selection runs only affected tests
+- Server persists across multiple test runs
+
+**Non-Watch Mode** (`jest`):
+- Vite server starts before test execution
+- Transform pipeline accelerates module transformation
+- Module graph provides dependency insights
+- Server stops after tests complete
 
 ## Installation
 
@@ -149,7 +163,13 @@ export default config;
 
 The following features are **enabled automatically** when you use Vite integration:
 
+#### Available in Both Modes
+
 - **Transform Pipeline**: Uses Vite's fast transform pipeline for module transformation
+- **Module Graph**: Dependency tracking and insights
+
+#### Watch Mode Only
+
 - **Smart Test Selection**: Only runs tests affected by changed files using Vite's module graph
 - **HMR (Hot Module Replacement)**: Enables faster test re-runs without full reloads
 
@@ -213,7 +233,23 @@ For a complete list of available options and phased rollout plan, see [Vite Conf
 
 ## Usage
 
-Once configured, simply run Jest in watch mode:
+Once configured, the Vite integration works seamlessly in both modes:
+
+### Non-Watch Mode
+
+```bash
+jest
+```
+
+The Vite dev server will start before test execution and stop after tests complete. You'll see messages indicating the server lifecycle:
+
+```
+Vite dev server started at http://localhost:5173 (test mode)
+...tests run...
+Vite dev server stopped
+```
+
+### Watch Mode
 
 ```bash
 jest --watch
@@ -225,13 +261,21 @@ or
 jest --watchAll
 ```
 
-The Vite dev server will start automatically when watch mode is enabled, and you'll see a message indicating the server URL:
+The Vite dev server will start when watch mode is enabled and persist throughout the session:
 
 ```
-Vite dev server started at http://localhost:5173
+Vite dev server started at http://localhost:5173 (watch mode)
 ```
 
 ## How It Works
+
+### Non-Watch Mode
+
+1. **Initialization**: Jest detects Vite configuration and initializes the server before test execution
+2. **Test Execution**: Tests run with Vite's transform pipeline and module graph available
+3. **Cleanup**: Server stops automatically after tests complete
+
+### Watch Mode
 
 1. **Initialization**: When Jest starts in watch mode with Vite integration enabled, a Vite dev server is initialized in the background.
 
@@ -249,7 +293,7 @@ Vite dev server started at http://localhost:5173
 
 - **Experimental Feature**: This integration is in its early stages and should be considered experimental.
 - **Optional Dependency**: Vite is an optional peer dependency. If Vite is not installed, Jest will continue to work normally without the integration.
-- **Watch Mode Only**: This feature only works in watch mode (`--watch` or `--watchAll`).
+- **Supports Both Modes**: Works in both regular test mode and watch mode (`--watch` or `--watchAll`).
 - **ESM Support**: The integration uses dynamic `import()` to load Vite. For best results, configure Jest with ESM support as described in the [Jest ESM documentation](https://jestjs.io/docs/ecmascript-modules).
 
 ## Example Configuration

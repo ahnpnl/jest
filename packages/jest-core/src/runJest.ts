@@ -29,6 +29,9 @@ import {JestHook, type JestHookEmitter, type TestWatcher} from 'jest-watcher';
 import type FailedTestsCache from './FailedTestsCache';
 import SearchSource from './SearchSource';
 import {type TestSchedulerContext, createTestScheduler} from './TestScheduler';
+import ViteDevServerManager, {
+  getViteWatchModeConfig,
+} from './ViteDevServerManager';
 import collectNodeHandles, {
   type HandleCollectionResult,
 } from './collectHandles';
@@ -161,6 +164,28 @@ export default async function runJest({
   // from Jest's config loading to running the tests
   Resolver.clearDefaultResolverCache();
 
+  // Initialize Vite dev server for non-watch mode if configured
+  let viteDevServerManager: ViteDevServerManager | null = null;
+  if (!globalConfig.watch && !globalConfig.watchAll) {
+    // Check if any project has Vite configuration
+    const projectWithVite = contexts.find(
+      context => context.config.future?.experimental_vite,
+    );
+    if (projectWithVite) {
+      const {config: viteConfig, enabled} = getViteWatchModeConfig(
+        projectWithVite.config,
+      );
+      if (enabled) {
+        viteDevServerManager = new ViteDevServerManager(
+          viteConfig,
+          projectWithVite.config.rootDir,
+          true,
+          false, // not watch mode
+        );
+      }
+    }
+  }
+
   const Sequencer: typeof TestSequencer = await requireOrImportModule(
     globalConfig.testSequencer,
   );
@@ -280,6 +305,11 @@ export default async function runJest({
     performance.mark('jest/globalSetup:start');
     await runGlobalHook({allTests, globalConfig, moduleName: 'globalSetup'});
     performance.mark('jest/globalSetup:end');
+
+    // Start Vite dev server for non-watch mode if configured
+    if (viteDevServerManager) {
+      await viteDevServerManager.start();
+    }
   }
 
   if (changedFilesPromise) {
@@ -318,6 +348,11 @@ export default async function runJest({
   performance.mark('jest/cacheResults:end');
 
   if (hasTests) {
+    // Stop Vite dev server for non-watch mode if configured
+    if (viteDevServerManager) {
+      await viteDevServerManager.stop();
+    }
+
     performance.mark('jest/globalTeardown:start');
     await runGlobalHook({allTests, globalConfig, moduleName: 'globalTeardown'});
     performance.mark('jest/globalTeardown:end');

@@ -1,10 +1,10 @@
 # Vite Integration Architecture
 
-This document explains the architectural decisions for integrating Vite dev server into Jest watch mode.
+This document explains the architectural decisions for integrating Vite dev server into Jest for both watch and non-watch modes.
 
 ## Architecture Overview
 
-The Vite integration follows Jest's existing architecture patterns and integrates at the appropriate layer for watch mode functionality.
+The Vite integration follows Jest's existing architecture patterns and integrates at the appropriate layers for watch mode and non-watch mode functionality.
 
 ### Component Hierarchy
 
@@ -15,24 +15,27 @@ jest-cli/src/run.ts (buildArgv, run)
     ↓
 @jest/core/cli/index.ts (runCLI)
     ↓
-@jest/core/watch.ts (watch function) ← Vite dev server initialized here
-    ↓
-@jest/core/runJest.ts (test execution)
+    ├─→ @jest/core/watch.ts (watch function) ← Vite server for watch mode
+    │       ↓
+    │   @jest/core/runJest.ts (test execution in watch mode)
+    │
+    └─→ @jest/core/runJest.ts (test execution) ← Vite server for non-watch mode
 ```
 
-## Why Vite Server is Initialized in `watch.ts`
+## Dual Mode Support
 
-### 1. **Watch Mode Specific Feature**
+### Watch Mode Integration (`watch.ts`)
 
-The Vite dev server integration is exclusively a watch mode feature. It doesn't apply to:
-- One-time test runs (`jest` without `--watch`)
-- CI/CD environments
-- Coverage reports
-- Other non-watch Jest operations
+The Vite dev server for watch mode is initialized in `watch.ts` because:
 
-Since it's watch-mode specific, initializing it in the `watch()` function is the most appropriate place.
+#### 1. **Watch Mode Specific Features**
 
-### 2. **Follows Jest's Existing Patterns**
+The watch mode integration provides features that only make sense in watch mode:
+- **HMR (Hot Module Replacement)**: Updates modules without full reloads between test runs
+- **Smart Test Selection**: Only runs tests affected by file changes
+- **Persistent Server**: Runs throughout the watch session for optimal performance
+
+#### 2. **Follows Jest's Existing Patterns**
 
 Jest already initializes watch-mode specific features in `watch.ts`:
 - `TestWatcher` instance
@@ -42,16 +45,7 @@ Jest already initializes watch-mode specific features in `watch.ts`:
 
 The Vite dev server fits naturally into this pattern as another watch-mode specific service.
 
-### 3. **Single Responsibility**
-
-- **CLI Layer** (`jest-cli`): Argument parsing, user interface
-- **Core Layer** (`@jest/core/cli`): Configuration loading, project setup
-- **Watch Layer** (`@jest/core/watch`): Watch mode orchestration, file monitoring
-- **Execution Layer** (`@jest/core/runJest`): Test execution
-
-The Vite dev server is orchestrated (started, stopped, module invalidation) at the watch layer, which is responsible for managing the watch mode lifecycle.
-
-### 4. **Access to Required Context**
+#### 3. **Access to Required Context**
 
 The `watch()` function has access to:
 - Test contexts (configurations for all projects)
@@ -65,17 +59,54 @@ All of these are needed for proper Vite integration:
 - **Global config**: To determine if watch mode is enabled
 - **Output streams**: To display Vite server status messages
 
-### 5. **Lifecycle Management**
+#### 4. **Lifecycle Management**
 
 The `watch()` function manages the entire watch mode lifecycle:
 - Initialization
-- File change handling
+- File change handling  
 - Cleanup on exit
 
 This makes it the ideal place to manage the Vite dev server lifecycle, ensuring:
 - Server starts when watch mode begins
 - Modules are invalidated on file changes
 - Server is properly stopped when watch mode ends
+
+### Non-Watch Mode Integration (`runJest.ts`)
+
+The Vite dev server for non-watch mode is initialized in `runJest.ts` because:
+
+#### 1. **Test Execution Lifecycle**
+
+The non-watch mode integration provides:
+- **Transform Pipeline**: Fast module transformation during test execution
+- **Module Graph**: Dependency tracking for test analysis
+- **Scoped Lifecycle**: Server starts before tests, stops after completion
+
+#### 2. **Similar to globalSetup/globalTeardown**
+
+Jest already has a pattern for services that run around test execution:
+- `globalSetup` runs before tests
+- `globalTeardown` runs after tests
+- Vite server follows the same pattern: start → tests → stop
+
+#### 3. **Access to Test Context**
+
+The `runJest()` function has access to:
+- All test contexts
+- Test configurations
+- Test sequencer
+- Test scheduler
+
+This allows Vite to be initialized with the correct project configuration.
+
+#### 4. **Clean Separation**
+
+Non-watch mode lifecycle is simple and linear:
+```
+1. Initialize (Vite server starts)
+2. Run tests
+3. Cleanup (Vite server stops)
+```
 
 ## Comparison with Vitest
 
@@ -90,7 +121,7 @@ Vite dev server (main process)
 Test runner (Vite plugin)
 ```
 
-**Jest + Vite Architecture:**
+**Jest + Vite Architecture (Watch Mode):**
 ```
 jest CLI
     ↓
@@ -101,10 +132,22 @@ Vite dev server (auxiliary service)
 Jest test runner (unchanged)
 ```
 
-Jest maintains its existing test runner and only uses Vite as an auxiliary service for:
+**Jest + Vite Architecture (Non-Watch Mode):**
+```
+jest CLI
+    ↓
+Jest core (runJest)
+    ↓
+Vite dev server (lifecycle service)
+    ↓
+Jest test runner (unchanged)
+```
+
+Jest maintains its existing test runner and only uses Vite as an auxiliary/lifecycle service for:
 - Fast module transformation
-- Module graph for smart test selection
-- HMR capabilities
+- Module graph for dependency tracking
+- HMR capabilities (watch mode only)
+- Smart test selection (watch mode only)
 
 This approach allows Jest to leverage Vite's performance benefits while maintaining backward compatibility and Jest's proven test execution model.
 
@@ -113,8 +156,8 @@ This approach allows Jest to leverage Vite's performance benefits while maintain
 ### Option 1: Initialize in CLI Layer
 **Rejected because:**
 - Would require passing Vite server instance through multiple layers
-- CLI layer doesn't have watch-mode specific logic
-- Would complicate non-watch mode executions
+- CLI layer doesn't have mode-specific logic
+- Would complicate the separation of concerns
 
 ### Option 2: Initialize in Core CLI (`runCLI`)
 **Rejected because:**

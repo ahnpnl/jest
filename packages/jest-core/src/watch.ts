@@ -231,7 +231,7 @@ export default async function watch(
   let shouldDisplayWatchUsage = true;
   let isWatchUsageDisplayed = false;
 
-  // Initialize Vite dev server manager
+  // Initialize Vite dev server manager for watch mode
   let viteDevServerManager: ViteDevServerManager | null = null;
   if (contexts.length > 0) {
     const {config: viteConfig, enabled} = getViteWatchModeConfig(
@@ -242,6 +242,7 @@ export default async function watch(
         viteConfig,
         contexts[0].config.rootDir,
         enabled,
+        true, // watch mode
       );
       await viteDevServerManager.start();
     }

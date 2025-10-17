@@ -69,4 +69,35 @@ describe('Vite Integration E2E Tests', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toContain('PASS');
   });
+
+  describe('Non-Watch Mode', () => {
+    test('vite integration works in non-watch mode', () => {
+      // Run tests without --watch flag
+      const result = runJest(DIR, ['--no-cache']);
+      
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toContain('PASS');
+      // Vite should start in test mode
+      expect(result.stderr).toMatch(/Vite dev server started.*test mode/);
+    });
+
+    test('vite server starts and stops properly in non-watch mode', () => {
+      const result = runJest(DIR, ['basic.test.js', '--no-cache']);
+      
+      expect(result.exitCode).toBe(0);
+      // Check that server started
+      expect(result.stderr).toContain('Vite dev server started');
+      // Check that server stopped  
+      expect(result.stderr).toContain('Vite dev server stopped');
+    });
+
+    test('vite transform pipeline works in non-watch mode', () => {
+      const result = runJest(DIR, ['--no-cache']);
+      
+      expect(result.exitCode).toBe(0);
+      // Features should be enabled
+      expect(result.stderr).toContain('Vite features enabled');
+      expect(result.stderr).toContain('transform pipeline');
+    });
+  });
 });

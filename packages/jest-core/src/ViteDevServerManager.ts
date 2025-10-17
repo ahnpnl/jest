@@ -8,15 +8,15 @@
 import type {Config} from '@jest/types';
 
 /**
- * Configuration options for the Vite dev server in watch mode
+ * Configuration options for the Vite dev server
  * These options are passed directly to Vite's createServer API
  */
 export type ViteWatchModeConfig = Record<string, any>;
 
 /**
- * Manages the Vite dev server lifecycle for Jest watch mode.
+ * Manages the Vite dev server lifecycle for Jest (both watch and non-watch modes).
  * This class handles starting, stopping, and integrating with Vite's
- * module graph and transform pipeline to improve watch mode performance.
+ * module graph and transform pipeline to improve test performance.
  *
  * Inspired by Angular CLI's Vite integration approach.
  */
@@ -27,19 +27,23 @@ export default class ViteDevServerManager {
   private moduleGraphCache = new Map<string, Set<string>>();
   private transformCache = new Map<string, string>();
   private enabled: boolean;
+  private isWatchMode: boolean;
 
   constructor(
     config: ViteWatchModeConfig,
     projectRoot: string,
     enabled: boolean,
+    isWatchMode = false,
   ) {
     this.config = config;
     this.projectRoot = projectRoot;
     this.enabled = enabled;
+    this.isWatchMode = isWatchMode;
   }
 
   /**
-   * Starts the Vite dev server for watch mode
+   * Starts the Vite dev server
+   * Works in both watch mode and non-watch mode
    */
   async start(): Promise<void> {
     if (!this.enabled) {
@@ -67,7 +71,7 @@ export default class ViteDevServerManager {
       console.log(
         `Vite dev server started at http://localhost:${
           this.viteDevServer.config.server.port
-        }`,
+        } (${this.isWatchMode ? 'watch mode' : 'test mode'})`,
       );
       // eslint-disable-next-line no-console
       console.log('Vite features enabled: transform pipeline, smart test selection, HMR');
@@ -370,23 +374,41 @@ export default class ViteDevServerManager {
  * Helper to extract Vite watch mode config from Jest config
  * The experimental_vite object can contain any Vite configuration options
  * that will be passed directly to Vite's createServer API
+ * Supports both ProjectConfig and direct experimental_vite config
  */
-export function getViteWatchModeConfig(jestConfig: Config.ProjectConfig): {
+export function getViteWatchModeConfig(
+  configOrViteConfig: Config.ProjectConfig | ViteWatchModeConfig | undefined,
+): {
   config: ViteWatchModeConfig;
   enabled: boolean;
 } {
-  // Check for future.experimental_vite configuration in Jest config
-  const futureConfig = (jestConfig as any).future;
-  const viteConfig = futureConfig?.experimental_vite;
-
-  if (!viteConfig || typeof viteConfig !== 'object') {
+  if (!configOrViteConfig) {
     return {config: {}, enabled: false};
   }
 
-  // Pass the entire viteConfig object to Vite
-  // This allows users to configure any Vite option they need
-  return {
-    config: viteConfig,
-    enabled: true,
-  };
+  // Check if it's a direct Vite config (passed from runJest)
+  // vs a full Jest ProjectConfig (passed from watch.ts)
+  const isJestConfig = 'rootDir' in configOrViteConfig;
+
+  if (isJestConfig) {
+    // It's a Jest ProjectConfig, extract from future.experimental_vite
+    const jestConfig = configOrViteConfig as Config.ProjectConfig;
+    const futureConfig = (jestConfig as any).future;
+    const viteConfig = futureConfig?.experimental_vite;
+
+    if (!viteConfig || typeof viteConfig !== 'object') {
+      return {config: {}, enabled: false};
+    }
+
+    return {
+      config: viteConfig,
+      enabled: true,
+    };
+  } else {
+    // It's a direct Vite config object
+    return {
+      config: configOrViteConfig as ViteWatchModeConfig,
+      enabled: true,
+    };
+  }
 }
