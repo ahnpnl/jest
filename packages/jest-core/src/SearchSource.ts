@@ -178,15 +178,29 @@ export default class SearchSource {
   async findRelatedTests(
     allPaths: Set<string>,
     collectCoverage: boolean,
+    otherSearchSources?: Array<SearchSource>,
   ): Promise<SearchResult> {
     const dependencyResolver = await this._getOrBuildDependencyResolver();
+
+    let expandedPaths = allPaths;
+
+    if (otherSearchSources && otherSearchSources.length > 0) {
+      const additionalPaths =
+        await this._findFilesInThisProjectDependingOnOtherProjects(
+          allPaths,
+          otherSearchSources,
+        );
+      if (additionalPaths.size > 0) {
+        expandedPaths = new Set([...allPaths, ...additionalPaths]);
+      }
+    }
 
     if (!collectCoverage) {
       return {
         tests: toTests(
           this._context,
           dependencyResolver.resolveInverse(
-            allPaths,
+            expandedPaths,
             this.isTestFilePath.bind(this),
             {skipNodeResolution: this._context.config.skipNodeResolution},
           ),
@@ -195,7 +209,7 @@ export default class SearchSource {
     }
 
     const testModulesMap = dependencyResolver.resolveInverseModuleMap(
-      allPaths,
+      expandedPaths,
       this.isTestFilePath.bind(this),
       {skipNodeResolution: this._context.config.skipNodeResolution},
     );
@@ -232,6 +246,67 @@ export default class SearchSource {
     };
   }
 
+  private async _findFilesInThisProjectDependingOnOtherProjects(
+    changedPaths: Set<string>,
+    otherSearchSources: Array<SearchSource>,
+  ): Promise<Set<string>> {
+    const changedPathsArray = [...changedPaths].map(p => path.resolve(p));
+    const filesInThisProject = new Set<string>();
+    const dependencyResolver = await this._getOrBuildDependencyResolver();
+
+    const otherProjectPackageNames = new Map<string, string>();
+    for (const otherSource of otherSearchSources) {
+      const pkgJsonPath = path.join(
+        otherSource._context.config.rootDir,
+        'package.json',
+      );
+      try {
+        const pkgJson = require(pkgJsonPath);
+        if (pkgJson.name) {
+          otherProjectPackageNames.set(
+            pkgJson.name,
+            otherSource._context.config.rootDir,
+          );
+        }
+      } catch {
+        // No package.json or error reading it
+      }
+    }
+
+    for (const file of this._context.hasteFS.getAbsoluteFileIterator()) {
+      const rawDependencies = this._context.hasteFS.getDependencies(file);
+      if (!rawDependencies) {
+        continue;
+      }
+
+      const resolvedDependencies = dependencyResolver.resolve(file, {
+        skipNodeResolution: this._context.config.skipNodeResolution,
+      });
+
+      for (const changedPath of changedPathsArray) {
+        if (resolvedDependencies.includes(changedPath)) {
+          filesInThisProject.add(file);
+          break;
+        }
+      }
+
+      for (const rawDep of rawDependencies) {
+        for (const [pkgName, pkgRoot] of otherProjectPackageNames) {
+          if (rawDep === pkgName || rawDep.startsWith(`${pkgName}/`)) {
+            for (const changedPath of changedPathsArray) {
+              if (changedPath.startsWith(pkgRoot + path.sep)) {
+                filesInThisProject.add(file);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return filesInThisProject;
+  }
+
   findTestsByPaths(paths: Array<string>): SearchResult {
     return {
       tests: toTests(
@@ -246,12 +321,17 @@ export default class SearchSource {
   async findRelatedTestsFromPattern(
     paths: Array<string>,
     collectCoverage: boolean,
+    otherSearchSources?: Array<SearchSource>,
   ): Promise<SearchResult> {
     if (Array.isArray(paths) && paths.length > 0) {
       const resolvedPaths = paths.map(p =>
         path.resolve(this._context.config.cwd, p),
       );
-      return this.findRelatedTests(new Set(resolvedPaths), collectCoverage);
+      return this.findRelatedTests(
+        new Set(resolvedPaths),
+        collectCoverage,
+        otherSearchSources,
+      );
     }
     return {tests: []};
   }
@@ -271,6 +351,7 @@ export default class SearchSource {
     globalConfig: Config.GlobalConfig,
     projectConfig: Config.ProjectConfig,
     changedFiles?: ChangedFiles,
+    otherSearchSources?: Array<SearchSource>,
   ): Promise<SearchResult> {
     if (globalConfig.onlyChanged) {
       if (!changedFiles) {
@@ -295,6 +376,7 @@ export default class SearchSource {
       return this.findRelatedTestsFromPattern(
         paths,
         globalConfig.collectCoverage,
+        otherSearchSources,
       );
     } else {
       return this.findMatchingTests(
@@ -332,11 +414,13 @@ export default class SearchSource {
     projectConfig: Config.ProjectConfig,
     changedFiles?: ChangedFiles,
     filter?: Filter,
+    otherSearchSources?: Array<SearchSource>,
   ): Promise<SearchResult> {
     const searchResult = await this._getTestPaths(
       globalConfig,
       projectConfig,
       changedFiles,
+      otherSearchSources,
     );
 
     const filterPath = globalConfig.filter;

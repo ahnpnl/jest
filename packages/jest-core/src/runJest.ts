@@ -45,12 +45,14 @@ const getTestPaths = async (
   changedFiles: ChangedFiles | undefined,
   jestHooks: JestHookEmitter,
   filter?: Filter,
+  otherSearchSources?: Array<SearchSource>,
 ) => {
   const data = await source.getTestPaths(
     globalConfig,
     projectConfig,
     changedFiles,
     filter,
+    otherSearchSources,
   );
 
   if (data.tests.length === 0 && globalConfig.onlyChanged && data.noSCM) {
@@ -189,6 +191,10 @@ export default async function runJest({
   const testRunData: TestRunData = await Promise.all(
     contexts.map(async (context, index) => {
       const searchSource = searchSources[index];
+      const otherSearchSources =
+        globalConfig.findRelatedTests && searchSources.length > 1
+          ? searchSources.filter((_, i) => i !== index)
+          : undefined;
       const matches = await getTestPaths(
         globalConfig,
         context.config,
@@ -197,6 +203,7 @@ export default async function runJest({
         changedFilesPromise && (await changedFilesPromise),
         jestHooks,
         filter,
+        otherSearchSources,
       );
       allTests = [...allTests, ...matches.tests];
 
