@@ -14048,14 +14048,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"jest-example-vite-integration@workspace:examples/vite-integration":
-  version: 0.0.0-use.local
-  resolution: "jest-example-vite-integration@workspace:examples/vite-integration"
-  dependencies:
-    jest: "workspace:*"
-  languageName: unknown
-  linkType: soft
-
 "jest-get-type@npm:^29.6.3":
   version: 29.6.3
   resolution: "jest-get-type@npm:29.6.3"

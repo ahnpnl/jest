@@ -9,21 +9,9 @@ import type {Config} from '@jest/types';
 
 /**
  * Configuration options for the Vite dev server in watch mode
+ * These options are passed directly to Vite's createServer API
  */
-export type ViteWatchModeConfig = {
-  /** Vite config file path */
-  configFile?: string;
-  /** Vite server port */
-  port?: number;
-  /** Additional Vite configuration */
-  viteConfig?: Record<string, any>;
-  /** Enable Vite transform pipeline integration */
-  useTransformPipeline?: boolean;
-  /** Enable smart test selection based on module graph */
-  smartTestSelection?: boolean;
-  /** Enable HMR (Hot Module Replacement) */
-  enableHMR?: boolean;
-};
+export type ViteWatchModeConfig = Record<string, any>;
 
 /**
  * Manages the Vite dev server lifecycle for Jest watch mode.
@@ -72,10 +60,8 @@ export default class ViteDevServerManager {
       this.viteDevServer = await vite.createServer(viteConfig);
       await this.viteDevServer.listen();
 
-      // Setup HMR if enabled
-      if (this.config.enableHMR) {
-        this.setupHMR();
-      }
+      // Setup HMR (enabled by default)
+      this.setupHMR();
 
       // eslint-disable-next-line no-console
       console.log(
@@ -83,21 +69,8 @@ export default class ViteDevServerManager {
           this.viteDevServer.config.server.port
         }`,
       );
-
-      if (this.config.useTransformPipeline) {
-        // eslint-disable-next-line no-console
-        console.log('Vite transform pipeline enabled');
-      }
-
-      if (this.config.smartTestSelection) {
-        // eslint-disable-next-line no-console
-        console.log('Smart test selection enabled');
-      }
-
-      if (this.config.enableHMR) {
-        // eslint-disable-next-line no-console
-        console.log('Hot Module Replacement (HMR) enabled');
-      }
+      // eslint-disable-next-line no-console
+      console.log('Vite features enabled: transform pipeline, smart test selection, HMR');
     } catch (error: any) {
       console.error('Failed to start Vite dev server:', error.message);
       // Don't throw - allow Jest to continue without Vite
@@ -156,7 +129,7 @@ export default class ViteDevServerManager {
    * @returns The transformed code or null if transformation fails
    */
   async transformFile(filePath: string): Promise<string | null> {
-    if (!this.viteDevServer || !this.config.useTransformPipeline) {
+    if (!this.viteDevServer) {
       return null;
     }
 
@@ -189,11 +162,7 @@ export default class ViteDevServerManager {
     changedFile: string,
     allTestPaths: Array<string>,
   ): Promise<Array<string>> {
-    if (
-      !this.viteDevServer ||
-      !this.config.smartTestSelection ||
-      allTestPaths.length === 0
-    ) {
+    if (!this.viteDevServer || allTestPaths.length === 0) {
       return allTestPaths;
     }
 
@@ -246,7 +215,7 @@ export default class ViteDevServerManager {
    * This allows for faster test re-runs without full reloads
    */
   setupHMR(): void {
-    if (!this.viteDevServer || !this.config.enableHMR) {
+    if (!this.viteDevServer) {
       return;
     }
 
@@ -364,7 +333,13 @@ export default class ViteDevServerManager {
   /**
    * Creates Vite configuration optimized for Jest watch mode
    */
+  /**
+   * Creates Vite configuration optimized for Jest watch mode
+   * Merges user-provided config with sensible defaults
+   */
   private async createViteConfig(): Promise<any> {
+    const vite = await this.loadVite();
+    
     const baseConfig: any = {
       // Optimize for watch mode
       optimizeDeps: {
@@ -377,43 +352,24 @@ export default class ViteDevServerManager {
       root: this.projectRoot,
       server: {
         hmr: true, // Enable Hot Module Replacement
-        port: this.config.port || 5173,
+        port: 5173,
         strictPort: false, // Allow fallback to another port
       },
     };
 
-    // Load custom Vite config if specified
-    if (this.config.configFile) {
-      try {
-        const vite = await this.loadVite();
-        const userConfig = await vite.loadConfigFromFile(
-          {command: 'serve', mode: 'development'},
-          this.config.configFile,
-          this.projectRoot,
-        );
-        if (userConfig?.config) {
-          // Merge user config with base config
-          return vite.mergeConfig(baseConfig, userConfig.config);
-        }
-      } catch (error: any) {
-        console.warn(
-          `Failed to load Vite config from ${this.config.configFile}:`,
-          error.message,
-        );
-      }
-    }
-
-    // Merge with additional config from Jest config
-    if (this.config.viteConfig) {
-      return {...baseConfig, ...this.config.viteConfig};
-    }
-
-    return baseConfig;
+    // Merge user config from Jest config with base config
+    // User config takes precedence over base config
+    return vite.mergeConfig(baseConfig, this.config);
   }
 }
 
 /**
  * Helper to extract Vite watch mode config from Jest config
+ */
+/**
+ * Helper to extract Vite watch mode config from Jest config
+ * The experimental_vite object can contain any Vite configuration options
+ * that will be passed directly to Vite's createServer API
  */
 export function getViteWatchModeConfig(jestConfig: Config.ProjectConfig): {
   config: ViteWatchModeConfig;
@@ -427,15 +383,10 @@ export function getViteWatchModeConfig(jestConfig: Config.ProjectConfig): {
     return {config: {}, enabled: false};
   }
 
+  // Pass the entire viteConfig object to Vite
+  // This allows users to configure any Vite option they need
   return {
-    config: {
-      configFile: viteConfig.configFile,
-      enableHMR: viteConfig.enableHMR === true,
-      port: viteConfig.port,
-      smartTestSelection: viteConfig.smartTestSelection === true,
-      useTransformPipeline: viteConfig.useTransformPipeline === true,
-      viteConfig: viteConfig.config,
-    },
+    config: viteConfig,
     enabled: true,
   };
 }

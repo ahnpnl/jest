@@ -34,38 +34,39 @@ describe('ViteDevServerManager', () => {
       const jestConfig = {
         future: {
           experimental_vite: {
-            config: {
-              base: '/app',
-            },
-            configFile: './vite.config.ts',
+            base: '/app',
             port: 3000,
+            resolve: {
+              conditions: ['node', 'default'],
+            },
           },
         },
       } as any;
       const result = getViteWatchModeConfig(jestConfig);
 
       expect(result.enabled).toBe(true);
-      expect(result.config.configFile).toBe('./vite.config.ts');
       expect(result.config.port).toBe(3000);
-      expect(result.config.viteConfig).toEqual({base: '/app'});
+      expect(result.config.base).toBe('/app');
+      expect(result.config.resolve).toEqual({conditions: ['node', 'default']});
     });
 
-    it('extracts new enhancement options', () => {
+    it('passes entire config object to Vite', () => {
       const jestConfig = {
         future: {
           experimental_vite: {
-            enableHMR: true,
-            smartTestSelection: true,
-            useTransformPipeline: true,
+            root: '/custom/root',
+            server: {
+              port: 8080,
+              strictPort: true,
+            },
           },
         },
       } as any;
       const result = getViteWatchModeConfig(jestConfig);
 
       expect(result.enabled).toBe(true);
-      expect(result.config.useTransformPipeline).toBe(true);
-      expect(result.config.smartTestSelection).toBe(true);
-      expect(result.config.enableHMR).toBe(true);
+      expect(result.config.root).toBe('/custom/root');
+      expect(result.config.server).toEqual({port: 8080, strictPort: true});
     });
 
     it('returns disabled when future.experimental_vite is not an object', () => {
@@ -133,31 +134,8 @@ describe('ViteDevServerManager', () => {
       expect(result).toBeNull();
     });
 
-    it('transformFile returns null when useTransformPipeline is false', async () => {
-      const manager = new ViteDevServerManager(
-        {useTransformPipeline: false},
-        '/test/project',
-        true,
-      );
-
-      const result = await manager.transformFile('/test/file.ts');
-      expect(result).toBeNull();
-    });
-
     it('getAffectedTests returns all tests when server is not running', async () => {
       const manager = new ViteDevServerManager({}, '/test/project', false);
-
-      const allTests = ['/test/a.test.ts', '/test/b.test.ts'];
-      const result = await manager.getAffectedTests('/src/module.ts', allTests);
-      expect(result).toEqual(allTests);
-    });
-
-    it('getAffectedTests returns all tests when smartTestSelection is false', async () => {
-      const manager = new ViteDevServerManager(
-        {smartTestSelection: false},
-        '/test/project',
-        true,
-      );
 
       const allTests = ['/test/a.test.ts', '/test/b.test.ts'];
       const result = await manager.getAffectedTests('/src/module.ts', allTests);

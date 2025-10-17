@@ -352,16 +352,9 @@ export const InitialOptions = Type.Partial(
     workerThreads: Type.Boolean(),
     future: Type.Partial(
       Type.Object({
-        experimental_vite: Type.Partial(
-          Type.Object({
-            config: Type.Record(Type.String(), Type.Unknown()),
-            configFile: Type.String(),
-            enableHMR: Type.Boolean(),
-            port: Type.Number(),
-            smartTestSelection: Type.Boolean(),
-            useTransformPipeline: Type.Boolean(),
-          }),
-        ),
+        // experimental_vite accepts any Vite configuration options
+        // These are passed directly to Vite's createServer API
+        experimental_vite: Type.Record(Type.String(), Type.Unknown()),
       }),
     ),
   }),

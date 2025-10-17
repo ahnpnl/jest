@@ -32,78 +32,88 @@ yarn add --dev vite
 
 ## Configuration
 
-Add the `future.experimental_vite` configuration option to your Jest config:
+Add the `future.experimental_vite` configuration option to your Jest config. The configuration accepts any Vite configuration options:
 
-```js
-// jest.config.js
-module.exports = {
+```typescript
+// jest.config.ts
+import type {Config} from 'jest';
+
+const config: Config = {
   // ... other Jest config options
   future: {
     experimental_vite: {
-      // Optional: specify a custom Vite config file
-      configFile: './vite.config.ts',
-      // Optional: specify a custom port for the dev server
-      port: 5173,
-      // Optional: enable Vite transform pipeline integration
-      useTransformPipeline: true,
-      // Optional: enable smart test selection based on module graph
-      smartTestSelection: true,
-      // Optional: enable Hot Module Replacement (HMR)
-      enableHMR: true,
-      // Optional: additional Vite configuration
-      config: {
-        // Custom Vite options
+      // Server configuration
+      server: {
+        port: 5173,
+        strictPort: false,
       },
+      
+      // Module resolution
+      resolve: {
+        conditions: ['node', 'default'],
+        alias: {
+          '@': './src',
+        },
+      },
+      
+      // Root directory
+      root: process.cwd(),
     },
   },
 };
+
+export default config;
 ```
+
+### Built-in Features
+
+The following features are **enabled automatically** when you use Vite integration:
+
+- **Transform Pipeline**: Uses Vite's fast transform pipeline for module transformation
+- **Smart Test Selection**: Only runs tests affected by changed files using Vite's module graph
+- **HMR (Hot Module Replacement)**: Enables faster test re-runs without full reloads
 
 ### Configuration Options
 
-The Vite integration is enabled by adding the `future.experimental_vite` option to your Jest configuration. All settings within this option are optional and will use sensible defaults if not specified.
+The `experimental_vite` option accepts any Vite configuration that would be passed to Vite's `createServer` API. Jest merges your configuration with sensible defaults optimized for testing.
 
-#### `configFile`
+#### Commonly Used Options
 
-Type: `string`  
-Optional
+##### Server Configuration
 
-Path to a Vite configuration file. If specified, Jest will load this configuration and merge it with the default settings.
+**`server.port`** (number, default: 5173)
+Port number for the Vite dev server.
 
-#### `port`
+**`server.strictPort`** (boolean, default: false)
+Whether to exit if the port is already in use.
 
-Type: `number`  
-Default: `5173`
+**`server.host`** (string | boolean)
+Specify server host address.
 
-Port number for the Vite dev server. If the port is already in use, Vite will automatically try the next available port.
+##### Module Resolution
 
-#### `config`
+**`resolve.conditions`** (string[], default: ['node', 'default'])
+Custom export conditions for module resolution.
+
+**`resolve.alias`** (Record<string, string>)
+Path aliases for module resolution.
+
+**`resolve.extensions`** (string[])
+File extensions to resolve (e.g., ['.ts', '.tsx', '.js']).
+
+##### Root and Base
+
+**`root`** (string)
+Project root directory (default: current working directory).
+
+**`base`** (string)
 
 Type: `object`  
 Optional
 
 Additional Vite configuration options to merge with the default configuration. See [Vite's configuration documentation](https://vitejs.dev/config/) for available options.
 
-#### `useTransformPipeline`
-
-Type: `boolean`  
-Default: `false`
-
-Enables Vite's transform pipeline for module transformation. When enabled, Jest will use Vite's fast transform pipeline to transform modules, potentially improving performance.
-
-#### `smartTestSelection`
-
-Type: `boolean`  
-Default: `false`
-
-Enables smart test selection based on Vite's module graph. When a file changes, Jest will only run tests that depend on the changed file, significantly reducing test execution time.
-
-#### `enableHMR`
-
-Type: `boolean`  
-Default: `false`
-
-Enables Hot Module Replacement (HMR) support. This allows for faster test re-runs by leveraging Vite's HMR capabilities to update modules without full reloads.
+For a complete list of available options and phased rollout plan, see [Vite Configuration Phases](./ViteConfigPhases.md).
 
 ## Usage
 
@@ -133,28 +143,28 @@ Vite dev server started at http://localhost:5173
 
 3. **Module Invalidation**: When files change, Jest invalidates the corresponding modules in Vite's module graph, ensuring fresh transforms on the next test run.
 
-4. **Transform Pipeline** (when `useTransformPipeline` is enabled): Jest uses Vite's fast transform pipeline to transform modules, leveraging Vite's optimized transformation and caching.
+4. **Transform Pipeline**: Jest automatically uses Vite's fast transform pipeline to transform modules, leveraging Vite's optimized transformation and caching.
 
-5. **Smart Test Selection** (when `smartTestSelection` is enabled): When a file changes, Jest analyzes Vite's module graph to determine which tests depend on the changed file and runs only those tests.
+5. **Smart Test Selection**: When a file changes, Jest automatically analyzes Vite's module graph to determine which tests depend on the changed file and runs only those tests.
 
-6. **HMR Support** (when `enableHMR` is enabled): Vite's Hot Module Replacement capabilities are leveraged to update modules without full reloads, enabling faster test re-runs.
+6. **HMR Support**: Vite's Hot Module Replacement capabilities are automatically leveraged to update modules without full reloads, enabling faster test re-runs.
 
 ## Limitations and Considerations
 
 - **Experimental Feature**: This integration is in its early stages and should be considered experimental.
 - **Optional Dependency**: Vite is an optional peer dependency. If Vite is not installed, Jest will continue to work normally without the integration.
 - **Watch Mode Only**: This feature only works in watch mode (`--watch` or `--watchAll`).
-- **Transform Pipeline**: When `useTransformPipeline` is enabled, Vite's transformations are used alongside Jest's existing transformers.
-- **Smart Test Selection**: The effectiveness of `smartTestSelection` depends on how well your project's module graph is maintained in Vite.
-- **HMR Compatibility**: `enableHMR` works best with projects that have clear module boundaries and minimal side effects.
+- **ESM Support**: The integration uses dynamic `import()` to load Vite. For best results, configure Jest with ESM support as described in the [Jest ESM documentation](https://jestjs.io/docs/ecmascript-modules).
 
 ## Example Configuration
 
-Here's a complete example configuration for a TypeScript project using Vite with all features enabled:
+Here's a complete example configuration for a TypeScript project using Vite:
 
-```js
-// jest.config.js
-module.exports = {
+```typescript
+// jest.config.ts
+import type {Config} from 'jest';
+
+const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
@@ -162,33 +172,26 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': 'ts-jest',
   },
+  // @ts-expect-error - experimental_vite is not yet in official types
   future: {
     experimental_vite: {
-      configFile: './vite.config.ts',
-      // Enable all enhancement features
-      useTransformPipeline: true,
-      smartTestSelection: true,
-      enableHMR: true,
-      config: {
-        resolve: {
-          conditions: ['node', 'default'],
+      // Server configuration
+      server: {
+        port: 5173,
+      },
+      
+      // Module resolution - matches Jest's behavior
+      resolve: {
+        conditions: ['node', 'default'],
+        alias: {
+          '@': './src',
         },
       },
     },
   },
 };
-```
 
-```ts
-// vite.config.ts
-import {defineConfig} from 'vite';
-
-export default defineConfig({
-  plugins: [],
-  test: {
-    // Vite-specific test configuration
-  },
-});
+export default config;
 ```
 
 ## Troubleshooting
