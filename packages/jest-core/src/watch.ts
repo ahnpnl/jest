@@ -33,6 +33,9 @@ import {
 } from 'jest-watcher';
 import FailedTestsCache from './FailedTestsCache';
 import SearchSource from './SearchSource';
+import ViteDevServerManager, {
+  getViteWatchModeConfig,
+} from './ViteDevServerManager';
 import getChangedFilesPromise from './getChangedFilesPromise';
 import activeFilters from './lib/activeFiltersMessage';
 import createContext from './lib/createContext';
@@ -228,6 +231,19 @@ export default async function watch(
   let shouldDisplayWatchUsage = true;
   let isWatchUsageDisplayed = false;
 
+  // Initialize Vite dev server manager
+  let viteDevServerManager: ViteDevServerManager | null = null;
+  if (contexts.length > 0) {
+    const viteConfig = getViteWatchModeConfig(contexts[0].config);
+    if (viteConfig.enabled) {
+      viteDevServerManager = new ViteDevServerManager(
+        viteConfig,
+        contexts[0].config.rootDir,
+      );
+      await viteDevServerManager.start();
+    }
+  }
+
   const emitFileChange = () => {
     if (hooks.isUsed('onFileChange')) {
       const projects = searchSources.map(({context, searchSource}) => ({
@@ -265,6 +281,14 @@ export default async function watch(
           context,
           searchSource: new SearchSource(context),
         };
+
+        // Invalidate changed files in Vite's module graph
+        if (viteDevServerManager?.isRunning()) {
+          for (const {filePath} of validPaths) {
+            viteDevServerManager.invalidateModule(filePath);
+          }
+        }
+
         emitFileChange();
         startRun(globalConfig);
       }
@@ -277,6 +301,10 @@ export default async function watch(
       if (activePlugin) {
         outputStream.write(ansiEscapes.cursorDown());
         outputStream.write(ansiEscapes.eraseDown);
+      }
+      // Clean up Vite dev server on exit
+      if (viteDevServerManager?.isRunning()) {
+        void viteDevServerManager.stop();
       }
     });
   }

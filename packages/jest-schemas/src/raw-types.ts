@@ -350,5 +350,13 @@ export const InitialOptions = Type.Partial(
     ),
     workerIdleMemoryLimit: Type.Union([Type.Number(), Type.String()]),
     workerThreads: Type.Boolean(),
+    vite: Type.Partial(
+      Type.Object({
+        enabled: Type.Boolean(),
+        configFile: Type.String(),
+        port: Type.Number(),
+        config: Type.Record(Type.String(), Type.Unknown()),
+      }),
+    ),
   }),
 );
