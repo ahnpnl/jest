@@ -8,6 +8,12 @@
 module.exports = {
   displayName: 'vite-integration-e2e',
   testEnvironment: 'node',
-  // Test with vite integration disabled (since Vite might not be installed in CI)
-  // Vite integration is opt-in via future.experimental_vite
+  // Enable Vite integration with all features for e2e testing
+  future: {
+    experimental_vite: {
+      enableHMR: true,
+      smartTestSelection: true,
+      useTransformPipeline: true,
+    },
+  },
 };

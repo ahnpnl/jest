@@ -6,10 +6,15 @@
  */
 
 import * as path from 'path';
-import {extractSummary} from '../Utils';
+import {extractSummary, runYarnInstall} from '../Utils';
 import runJest from '../runJest';
 
 const DIR = path.resolve(__dirname, '../vite-integration');
+
+beforeAll(() => {
+  // Install vite dependency for the e2e test
+  runYarnInstall(DIR);
+});
 
 test('vite integration does not break normal jest execution', () => {
   const result = runJest(DIR, ['--no-cache']);

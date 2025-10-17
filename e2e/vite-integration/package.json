@@ -1,3 +1,6 @@
 {
-  "name": "vite-integration-e2e"
+  "name": "vite-integration-e2e",
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
 }
