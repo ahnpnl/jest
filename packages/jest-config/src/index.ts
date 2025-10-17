@@ -24,6 +24,8 @@ export {replaceRootDirInPath} from './utils';
 export {default as defaults} from './Defaults';
 export {default as descriptions} from './Descriptions';
 export {constants};
+export {getDefaultViteConfig} from './getDefaultViteConfig';
+export type {DefaultViteConfig} from './getDefaultViteConfig';
 
 type ReadConfig = {
   configPath: string | null | undefined;

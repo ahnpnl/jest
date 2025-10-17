@@ -32,7 +32,30 @@ yarn add --dev vite
 
 ## Configuration
 
-Add the `future.experimental_vite` configuration option to your Jest config. The configuration accepts Vite options inspired by Vitest's testing-focused approach:
+Add the `future.experimental_vite` configuration option to your Jest config. 
+
+### Using the Default Config Helper (Recommended)
+
+Jest provides a `getDefaultViteConfig()` helper that returns sensible defaults for testing:
+
+```typescript
+// jest.config.ts
+import type {Config} from 'jest';
+import {getDefaultViteConfig} from 'jest-config';
+
+const config: Config = {
+  // ... other Jest config options
+  future: {
+    experimental_vite: getDefaultViteConfig(),
+  },
+};
+
+export default config;
+```
+
+### Custom Configuration
+
+You can also provide your own Vite configuration inspired by Vitest's testing-focused approach:
 
 ```typescript
 // jest.config.ts
@@ -77,6 +100,43 @@ const config: Config = {
         include: ['react', 'react-dom'],
         // Exclude from bundling
         exclude: [],
+      },
+    },
+  },
+};
+
+export default config;
+```
+
+### Extending the Default Config
+
+You can also extend the default config with your custom options:
+
+```typescript
+// jest.config.ts
+import type {Config} from 'jest';
+import {getDefaultViteConfig} from 'jest-config';
+
+const defaultViteConfig = getDefaultViteConfig();
+
+const config: Config = {
+  // ... other Jest config options
+  future: {
+    experimental_vite: {
+      ...defaultViteConfig,
+      // Override or add custom options
+      server: {
+        ...defaultViteConfig.server,
+        deps: {
+          ...defaultViteConfig.server.deps,
+          inline: ['my-esm-package'], // Add your packages
+        },
+      },
+      resolve: {
+        ...defaultViteConfig.resolve,
+        alias: {
+          '@': './src', // Add your aliases
+        },
       },
     },
   },
