@@ -6,12 +6,23 @@
  */
 
 import type {Config} from '@jest/types';
+import type {ViteDevServer, UserConfig as ViteUserConfig} from 'vite';
 
 /**
  * Configuration options for the Vite dev server
  * These options are passed directly to Vite's createServer API
  */
-export type ViteWatchModeConfig = Record<string, any>;
+export type ViteWatchModeConfig = Record<string, unknown>;
+
+/**
+ * Vite module type (loaded dynamically)
+ */
+type ViteModule = typeof import('vite');
+
+/**
+ * Vite module with undefined if not installed
+ */
+type ViteModuleOrUndefined = ViteModule | undefined;
 
 /**
  * Manages the Vite dev server lifecycle for Jest (both watch and non-watch modes).
@@ -19,64 +30,55 @@ export type ViteWatchModeConfig = Record<string, any>;
  * module graph and transform pipeline to improve test performance.
  *
  * Inspired by Angular CLI's Vite integration approach.
+ *
+ * Design principle: Callers decide which methods to call based on their needs
+ * (no boolean flags in constructor per Uncle Bob's clean code principles)
  */
 export default class ViteDevServerManager {
-  private viteDevServer: any = null;
+  private viteDevServer: ViteDevServer | undefined;
   private config: ViteWatchModeConfig;
   private projectRoot: string;
   private moduleGraphCache = new Map<string, Set<string>>();
   private transformCache = new Map<string, string>();
-  private enabled: boolean;
-  private isWatchMode: boolean;
 
-  constructor(
-    config: ViteWatchModeConfig,
-    projectRoot: string,
-    enabled: boolean,
-    isWatchMode = false,
-  ) {
+  constructor(config: ViteWatchModeConfig, projectRoot: string) {
     this.config = config;
     this.projectRoot = projectRoot;
-    this.enabled = enabled;
-    this.isWatchMode = isWatchMode;
   }
 
   /**
    * Starts the Vite dev server
    * Works in both watch mode and non-watch mode
+   * Call setupHMR() after start() if you want HMR (typically for watch mode)
    */
   async start(): Promise<void> {
-    if (!this.enabled) {
-      return;
-    }
-
     try {
       // Dynamically import Vite only when needed (optional peer dependency)
       const vite = await this.loadVite();
       if (!vite) {
         console.warn(
-          'Vite is not installed. Install it to use Vite dev server in watch mode: npm install --save-dev vite',
+          'Vite is not installed. Install it to use Vite dev server: npm install --save-dev vite',
         );
         return;
       }
 
-      const viteConfig = await this.createViteConfig();
+      const viteConfig = await this.createViteConfig(vite);
       this.viteDevServer = await vite.createServer(viteConfig);
       await this.viteDevServer.listen();
 
-      // Setup HMR (enabled by default)
-      this.setupHMR();
-
       // eslint-disable-next-line no-console
       console.log(
-        `Vite dev server started at http://localhost:${
-          this.viteDevServer.config.server.port
-        } (${this.isWatchMode ? 'watch mode' : 'test mode'})`,
+        `Vite dev server started at http://localhost:${this.viteDevServer.config.server.port}`,
       );
       // eslint-disable-next-line no-console
-      console.log('Vite features enabled: transform pipeline, smart test selection, HMR');
-    } catch (error: any) {
-      console.error('Failed to start Vite dev server:', error.message);
+      console.log(
+        'Vite features enabled: transform pipeline, module graph tracking',
+      );
+    } catch (error) {
+      console.error(
+        'Failed to start Vite dev server:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       // Don't throw - allow Jest to continue without Vite
     }
   }
@@ -91,10 +93,13 @@ export default class ViteDevServerManager {
         this.clearCaches();
         // eslint-disable-next-line no-console
         console.log('Vite dev server stopped');
-      } catch (error: any) {
-        console.error('Failed to stop Vite dev server:', error.message);
+      } catch (error) {
+        console.error(
+          'Failed to stop Vite dev server:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
       }
-      this.viteDevServer = null;
+      this.viteDevServer = undefined;
     }
   }
 
@@ -122,24 +127,28 @@ export default class ViteDevServerManager {
           }
         }
       }
-    } catch (error: any) {
-      console.error('Failed to invalidate module:', error.message);
+    } catch (error) {
+      console.error(
+        'Failed to invalidate module:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
   }
 
   /**
    * Transforms a file using Vite's transform pipeline
    * @param filePath - The file path to transform
-   * @returns The transformed code or null if transformation fails
+   * @returns The transformed code or undefined if transformation fails
    */
-  async transformFile(filePath: string): Promise<string | null> {
+  async transformFile(filePath: string): Promise<string | undefined> {
     if (!this.viteDevServer) {
-      return null;
+      return undefined;
     }
 
     // Check cache first
-    if (this.transformCache.has(filePath)) {
-      return this.transformCache.get(filePath)!;
+    const cached = this.transformCache.get(filePath);
+    if (cached) {
+      return cached;
     }
 
     try {
@@ -148,11 +157,14 @@ export default class ViteDevServerManager {
         this.transformCache.set(filePath, result.code);
         return result.code;
       }
-    } catch (error: any) {
-      console.error(`Failed to transform ${filePath}:`, error.message);
+    } catch (error) {
+      console.error(
+        `Failed to transform ${filePath}:`,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
 
-    return null;
+    return undefined;
   }
 
   /**
@@ -180,7 +192,10 @@ export default class ViteDevServerManager {
       }
 
       // Get all importers of the changed module (reverse dependency graph)
-      const getImporters = (module: any, visited = new Set<any>()): void => {
+      const getImporters = (
+        module: any,
+        visited = new Set<any>(),
+      ): void => {
         if (visited.has(module)) {
           return;
         }
@@ -208,14 +223,18 @@ export default class ViteDevServerManager {
       }
 
       return [...affectedTests];
-    } catch (error: any) {
-      console.error('Failed to determine affected tests:', error.message);
+    } catch (error) {
+      console.error(
+        'Failed to determine affected tests:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return allTestPaths;
     }
   }
 
   /**
    * Sets up HMR (Hot Module Replacement) handlers
+   * Call this after start() if you want HMR (typically for watch mode)
    * This allows for faster test re-runs without full reloads
    */
   setupHMR(): void {
@@ -238,12 +257,18 @@ export default class ViteDevServerManager {
         this.viteDevServer.moduleGraph.onFileChange = (file: string) => {
           this.invalidateModule(file);
           if (originalOnFileChange) {
-            originalOnFileChange.call(this.viteDevServer.moduleGraph, file);
+            originalOnFileChange.call(this.viteDevServer!.moduleGraph, file);
           }
         };
       }
-    } catch (error: any) {
-      console.error('Failed to setup HMR:', error.message);
+
+      // eslint-disable-next-line no-console
+      console.log('Vite HMR enabled for faster test re-runs');
+    } catch (error) {
+      console.error(
+        'Failed to setup HMR:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
   }
 
@@ -258,8 +283,9 @@ export default class ViteDevServerManager {
     }
 
     // Check cache first
-    if (this.moduleGraphCache.has(filePath)) {
-      return this.moduleGraphCache.get(filePath)!;
+    const cached = this.moduleGraphCache.get(filePath);
+    if (cached) {
+      return cached;
     }
 
     const dependencies = new Set<string>();
@@ -287,10 +313,10 @@ export default class ViteDevServerManager {
       }
 
       this.moduleGraphCache.set(filePath, dependencies);
-    } catch (error: any) {
+    } catch (error) {
       console.error(
         `Failed to get dependencies for ${filePath}:`,
-        error.message,
+        error instanceof Error ? error.message : 'Unknown error',
       );
     }
 
@@ -308,7 +334,7 @@ export default class ViteDevServerManager {
   /**
    * Gets the Vite module graph for dependency tracking
    */
-  getModuleGraph(): any {
+  getModuleGraph() {
     return this.viteDevServer?.moduleGraph;
   }
 
@@ -316,36 +342,32 @@ export default class ViteDevServerManager {
    * Checks if the dev server is running
    */
   isRunning(): boolean {
-    return this.viteDevServer !== null;
+    return this.viteDevServer !== undefined;
   }
 
   /**
    * Dynamically loads Vite module
+   * Returns undefined if Vite is not installed
    */
-  private async loadVite(): Promise<any> {
+  private async loadVite(): Promise<ViteModuleOrUndefined> {
     try {
       // Vite is an ESM module, so we need to use dynamic import
       // This requires Jest to be configured with ESM support
       // @ts-expect-error - Vite is an optional peer dependency
-      const viteModule = await import('vite');
+      const viteModule: ViteModule = await import('vite');
       return viteModule;
     } catch {
-      return null;
+      return undefined;
     }
   }
 
   /**
-   * Creates Vite configuration optimized for Jest watch mode
-   */
-  /**
-   * Creates Vite configuration optimized for Jest watch mode
+   * Creates Vite configuration optimized for Jest
    * Merges user-provided config with sensible defaults
    */
-  private async createViteConfig(): Promise<any> {
-    const vite = await this.loadVite();
-    
-    const baseConfig: any = {
-      // Optimize for watch mode
+  private async createViteConfig(vite: ViteModule): Promise<ViteUserConfig> {
+    const baseConfig: ViteUserConfig = {
+      // Optimize for testing
       optimizeDeps: {
         disabled: false,
       },
@@ -363,27 +385,22 @@ export default class ViteDevServerManager {
 
     // Merge user config from Jest config with base config
     // User config takes precedence over base config
-    return vite.mergeConfig(baseConfig, this.config);
+    return vite.mergeConfig(baseConfig, this.config as ViteUserConfig);
   }
 }
 
 /**
- * Helper to extract Vite watch mode config from Jest config
+ * Resolves Vite configuration from Jest config
+ * This is a standalone function that can be reused in both watch and non-watch modes
+ * 
+ * @param configOrViteConfig - Either a Jest ProjectConfig or a direct Vite config
+ * @returns The Vite configuration object
  */
-/**
- * Helper to extract Vite watch mode config from Jest config
- * The experimental_vite object can contain any Vite configuration options
- * that will be passed directly to Vite's createServer API
- * Supports both ProjectConfig and direct experimental_vite config
- */
-export function getViteWatchModeConfig(
+export function resolveViteConfig(
   configOrViteConfig: Config.ProjectConfig | ViteWatchModeConfig | undefined,
-): {
-  config: ViteWatchModeConfig;
-  enabled: boolean;
-} {
+): ViteWatchModeConfig {
   if (!configOrViteConfig) {
-    return {config: {}, enabled: false};
+    return {};
   }
 
   // Check if it's a direct Vite config (passed from runJest)
@@ -397,18 +414,25 @@ export function getViteWatchModeConfig(
     const viteConfig = futureConfig?.experimental_vite;
 
     if (!viteConfig || typeof viteConfig !== 'object') {
-      return {config: {}, enabled: false};
+      return {};
     }
 
-    return {
-      config: viteConfig,
-      enabled: true,
-    };
+    return viteConfig as ViteWatchModeConfig;
   } else {
     // It's a direct Vite config object
-    return {
-      config: configOrViteConfig as ViteWatchModeConfig,
-      enabled: true,
-    };
+    return configOrViteConfig as ViteWatchModeConfig;
   }
+}
+
+/**
+ * Checks if Vite integration is enabled in the config
+ * 
+ * @param configOrViteConfig - Either a Jest ProjectConfig or a direct Vite config
+ * @returns true if Vite integration is enabled
+ */
+export function isViteEnabled(
+  configOrViteConfig: Config.ProjectConfig | ViteWatchModeConfig | undefined,
+): boolean {
+  const viteConfig = resolveViteConfig(configOrViteConfig);
+  return Object.keys(viteConfig).length > 0;
 }

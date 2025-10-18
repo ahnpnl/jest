@@ -30,7 +30,8 @@ import type FailedTestsCache from './FailedTestsCache';
 import SearchSource from './SearchSource';
 import {type TestSchedulerContext, createTestScheduler} from './TestScheduler';
 import ViteDevServerManager, {
-  getViteWatchModeConfig,
+  isViteEnabled,
+  resolveViteConfig,
 } from './ViteDevServerManager';
 import collectNodeHandles, {
   type HandleCollectionResult,
@@ -165,24 +166,18 @@ export default async function runJest({
   Resolver.clearDefaultResolverCache();
 
   // Initialize Vite dev server for non-watch mode if configured
-  let viteDevServerManager: ViteDevServerManager | null = null;
+  let viteDevServerManager: ViteDevServerManager | undefined;
   if (!globalConfig.watch && !globalConfig.watchAll) {
     // Check if any project has Vite configuration
-    const projectWithVite = contexts.find(
-      context => context.config.future?.experimental_vite,
+    const projectWithVite = contexts.find(context =>
+      isViteEnabled(context.config),
     );
     if (projectWithVite) {
-      const {config: viteConfig, enabled} = getViteWatchModeConfig(
-        projectWithVite.config,
+      const viteConfig = resolveViteConfig(projectWithVite.config);
+      viteDevServerManager = new ViteDevServerManager(
+        viteConfig,
+        projectWithVite.config.rootDir,
       );
-      if (enabled) {
-        viteDevServerManager = new ViteDevServerManager(
-          viteConfig,
-          projectWithVite.config.rootDir,
-          true,
-          false, // not watch mode
-        );
-      }
     }
   }
 

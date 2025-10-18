@@ -34,7 +34,8 @@ import {
 import FailedTestsCache from './FailedTestsCache';
 import SearchSource from './SearchSource';
 import ViteDevServerManager, {
-  getViteWatchModeConfig,
+  isViteEnabled,
+  resolveViteConfig,
 } from './ViteDevServerManager';
 import getChangedFilesPromise from './getChangedFilesPromise';
 import activeFilters from './lib/activeFiltersMessage';
@@ -232,20 +233,16 @@ export default async function watch(
   let isWatchUsageDisplayed = false;
 
   // Initialize Vite dev server manager for watch mode
-  let viteDevServerManager: ViteDevServerManager | null = null;
-  if (contexts.length > 0) {
-    const {config: viteConfig, enabled} = getViteWatchModeConfig(
-      contexts[0].config,
+  let viteDevServerManager: ViteDevServerManager | undefined;
+  if (contexts.length > 0 && isViteEnabled(contexts[0].config)) {
+    const viteConfig = resolveViteConfig(contexts[0].config);
+    viteDevServerManager = new ViteDevServerManager(
+      viteConfig,
+      contexts[0].config.rootDir,
     );
-    if (enabled) {
-      viteDevServerManager = new ViteDevServerManager(
-        viteConfig,
-        contexts[0].config.rootDir,
-        enabled,
-        true, // watch mode
-      );
-      await viteDevServerManager.start();
-    }
+    await viteDevServerManager.start();
+    // Setup HMR for watch mode
+    viteDevServerManager.setupHMR();
   }
 
   const emitFileChange = () => {

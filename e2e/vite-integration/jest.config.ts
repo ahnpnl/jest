@@ -8,15 +8,15 @@
  */
 
 import type {Config} from 'jest';
-import {defineViteConfig} from 'jest-config';
+import {withViteConfig} from 'jest-config';
 
 const config: Config = {
   displayName: 'vite-integration-e2e',
   testEnvironment: 'node',
-  // Enable Vite integration for e2e testing using defineViteConfig
+  // Enable Vite integration for e2e testing using withViteConfig
   // @ts-expect-error - experimental_vite is not yet in the official types
   future: {
-    experimental_vite: defineViteConfig({
+    experimental_vite: withViteConfig({
       root: process.cwd(),
       server: {
         deps: {
