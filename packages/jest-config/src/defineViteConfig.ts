@@ -1,0 +1,114 @@
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+import type {
+  AliasOptions,
+  DepOptimizationOptions,
+  ResolveOptions,
+  ServerOptions,
+  UserConfig,
+} from 'vite';
+
+/**
+ * Phase 1 Vite configuration options supported by Jest
+ * Based on Vitest's testing-focused configuration approach
+ * Reuses types from Vite to avoid maintenance overhead
+ */
+export interface ViteConfig {
+  /** Root directory for module resolution */
+  root?: UserConfig['root'];
+  /** Server configuration for dependency handling */
+  server?: Pick<ServerOptions, 'deps' | 'fs'>;
+  /** Module resolution configuration (critical for testing) */
+  resolve?: Pick<ResolveOptions, 'conditions' | 'alias' | 'extensions' | 'mainFields'>;
+  /** Dependency optimization for better performance */
+  optimizeDeps?: Pick<DepOptimizationOptions, 'include' | 'exclude' | 'esbuildOptions'>;
+  /** Base public path when serving assets */
+  base?: UserConfig['base'];
+  /** Path to external vite.config.ts file */
+  configFile?: UserConfig['configFile'];
+}
+
+/**
+ * Create Vite configuration for Jest testing with type safety and sensible defaults
+ * Supports Phase 1 options: server, resolve, optimizeDeps, root, base, configFile
+ * 
+ * @example
+ * ```typescript
+ * import {defineConfig} from 'jest';
+ * import {withViteConfig} from 'jest-config';
+ * 
+ * export default defineConfig({
+ *   future: {
+ *     experimental_vite: withViteConfig({
+ *       root: process.cwd(),
+ *       server: {
+ *         deps: {
+ *           inline: ['my-esm-package'],
+ *         },
+ *       },
+ *       resolve: {
+ *         alias: {
+ *           '@': './src',
+ *         },
+ *       },
+ *     }),
+ *   },
+ * });
+ * ```
+ */
+export function withViteConfig(config: ViteConfig = {}): ViteConfig {
+  // Merge user config with sensible defaults
+  return {
+    root: config.root ?? process.cwd(),
+    server: {
+      deps: {
+        inline: config.server?.deps?.inline ?? [],
+        external: config.server?.deps?.external,
+        fallbackCJS: config.server?.deps?.fallbackCJS ?? true,
+      },
+      fs: {
+        allow: config.server?.fs?.allow,
+        strict: config.server?.fs?.strict ?? false,
+      },
+    },
+    resolve: {
+      conditions:
+        config.resolve?.conditions ?? ['node', 'default', 'development'],
+      alias: config.resolve?.alias,
+      extensions:
+        config.resolve?.extensions ??
+        ['.mts', '.cts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+      mainFields:
+        config.resolve?.mainFields ?? ['module', 'jsnext:main', 'jsnext'],
+    },
+    optimizeDeps: {
+      include: config.optimizeDeps?.include ?? [],
+      exclude: config.optimizeDeps?.exclude ?? [],
+      esbuildOptions: {
+        target: config.optimizeDeps?.esbuildOptions?.target ?? 'es2020',
+        ...config.optimizeDeps?.esbuildOptions,
+      },
+    },
+    base: config.base,
+    configFile: config.configFile,
+  };
+}
+
+/**
+ * @deprecated Use withViteConfig() instead
+ */
+export function defineViteConfig(config: ViteConfig = {}): ViteConfig {
+  return withViteConfig(config);
+}
+
+/**
+ * @deprecated Use withViteConfig() instead
+ */
+export function getDefaultViteConfig(): ViteConfig {
+  return withViteConfig();
+}

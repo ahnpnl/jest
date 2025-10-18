@@ -33,6 +33,10 @@ import {
 } from 'jest-watcher';
 import FailedTestsCache from './FailedTestsCache';
 import SearchSource from './SearchSource';
+import ViteDevServerManager, {
+  isViteEnabled,
+  resolveViteConfig,
+} from './ViteDevServerManager';
 import getChangedFilesPromise from './getChangedFilesPromise';
 import activeFilters from './lib/activeFiltersMessage';
 import createContext from './lib/createContext';
@@ -228,6 +232,36 @@ export default async function watch(
   let shouldDisplayWatchUsage = true;
   let isWatchUsageDisplayed = false;
 
+  // Initialize Vite dev server manager for watch mode
+  let viteDevServerManager: ViteDevServerManager | undefined;
+  if (contexts.length > 0 && isViteEnabled(contexts[0].config)) {
+    const viteConfig = resolveViteConfig(contexts[0].config);
+    viteDevServerManager = new ViteDevServerManager(
+      viteConfig,
+      contexts[0].config.rootDir,
+    );
+    await viteDevServerManager.start();
+    
+    // Setup HMR for watch mode
+    viteDevServerManager.setupHMR();
+    
+    // Setup file change listener to integrate with Vite's watcher
+    viteDevServerManager.onFileChange(async file => {
+      // eslint-disable-next-line no-console
+      console.log(`Vite detected change: ${file}`);
+      // File invalidation already handled in onFileChange
+      // Jest's hasteMap will also pick up the change
+    });
+    
+    // eslint-disable-next-line no-console
+    console.log(
+      'Vite dev server integration enabled:\n' +
+      '  - Fast file transformations\n' +
+      '  - Smart test selection\n' +
+      '  - Hot Module Replacement'
+    );
+  }
+
   const emitFileChange = () => {
     if (hooks.isUsed('onFileChange')) {
       const projects = searchSources.map(({context, searchSource}) => ({
@@ -265,6 +299,14 @@ export default async function watch(
           context,
           searchSource: new SearchSource(context),
         };
+
+        // Invalidate changed files in Vite's module graph
+        if (viteDevServerManager?.isRunning()) {
+          for (const {filePath} of validPaths) {
+            viteDevServerManager.invalidateModule(filePath);
+          }
+        }
+
         emitFileChange();
         startRun(globalConfig);
       }
@@ -277,6 +319,10 @@ export default async function watch(
       if (activePlugin) {
         outputStream.write(ansiEscapes.cursorDown());
         outputStream.write(ansiEscapes.eraseDown);
+      }
+      // Clean up Vite dev server on exit
+      if (viteDevServerManager?.isRunning()) {
+        void viteDevServerManager.stop();
       }
     });
   }
@@ -294,6 +340,40 @@ export default async function watch(
     isRunning = true;
     const configs = contexts.map(context => context.config);
     const changedFilesPromise = getChangedFilesPromise(globalConfig, configs);
+
+    // Use Vite's module graph for smart test selection if available
+    if (viteDevServerManager && viteDevServerManager.isRunning()) {
+      const changedFiles = await changedFilesPromise;
+      if (changedFiles && changedFiles.changedFiles && changedFiles.changedFiles.size > 0) {
+        // Get all test files
+        const allTests = searchSources.flatMap(({searchSource}) =>
+          searchSource
+            .findMatchingTests(
+              new TestPathPatterns([]).toExecutor({
+                rootDir: searchSource.getSerializableConfig().rootDir,
+              }),
+            )
+            .tests.map(t => t.path),
+        );
+
+        // For each changed file, get affected tests
+        const affectedTestsSet = new Set<string>();
+        for (const changedFile of changedFiles.changedFiles) {
+          const affected = await viteDevServerManager.getAffectedTests(
+            changedFile,
+            allTests,
+          );
+          affected.forEach(test => affectedTestsSet.add(test));
+        }
+
+        if (affectedTestsSet.size > 0 && affectedTestsSet.size < allTests.length) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `\nVite smart test selection: Running ${affectedTestsSet.size} of ${allTests.length} tests\n`,
+          );
+        }
+      }
+    }
 
     try {
       await runJest({

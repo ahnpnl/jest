@@ -1,0 +1,6 @@
+{
+  "name": "vite-integration-e2e",
+  "devDependencies": {
+    "vite": "^7.1.10"
+  }
+}

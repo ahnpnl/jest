@@ -350,5 +350,12 @@ export const InitialOptions = Type.Partial(
     ),
     workerIdleMemoryLimit: Type.Union([Type.Number(), Type.String()]),
     workerThreads: Type.Boolean(),
+    future: Type.Partial(
+      Type.Object({
+        // experimental_vite accepts any Vite configuration options
+        // These are passed directly to Vite's createServer API
+        experimental_vite: Type.Record(Type.String(), Type.Unknown()),
+      }),
+    ),
   }),
 );
