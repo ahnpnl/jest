@@ -25,28 +25,32 @@ type ViteModule = {
  */
 async function loadViteModule(): Promise<ViteModule> {
   try {
-    // Try to load tsx first using dynamic import with string to avoid compile-time dependency
+    // Load tsx for TypeScript config support
     const tsxModule = await import(
       /* @ts-expect-error - Dynamic import of optional peer dependency */
       /* webpackIgnore: true */ 'tsx/cjs/api'
     ).catch(() => null);
 
-    if (tsxModule) {
-      const {require: tsxRequire} = tsxModule as {
-        require: (id: string, path: string) => ViteModule;
-      };
-      // Use tsx to load Vite (supports TypeScript configs)
-      const viteModule = tsxRequire('vite', __dirname);
-      return viteModule;
+    if (!tsxModule) {
+      throw new Error(
+        'Vite integration requires "tsx" package to be installed. ' +
+          'Please install it with: npm install --save-dev tsx',
+      );
     }
 
-    // Fall back to regular require if tsx is not available
+    const {require: tsxRequire} = tsxModule as {
+      require: (id: string, path: string) => ViteModule;
+    };
 
-    return require('vite') as ViteModule;
-  } catch {
+    // Use tsx to load Vite (supports TypeScript configs)
+    // Vite is ESM-only, so we need tsx to load it properly
+    const viteModule = tsxRequire('vite', __dirname);
+    return viteModule;
+  } catch (error) {
     throw new Error(
       'Vite integration requires "vite" and "tsx" packages to be installed. ' +
-        'Please install them with: npm install --save-dev vite tsx',
+        'Please install them with: npm install --save-dev vite tsx\n' +
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -61,29 +65,16 @@ export async function createViteServer(
   try {
     const vite = await loadViteModule();
 
-    // Merge user config with test defaults
+    // Merge user config with test defaults (Phase 1: mode, define, resolve only)
     const config = {
-      configFile: viteConfig.configFile,
-      css: viteConfig.css,
       define: viteConfig.define,
-      esbuild: viteConfig.esbuild,
       mode: viteConfig.mode || 'test',
-      optimizeDeps: {
-        ...viteConfig.optimizeDeps,
-        // Disable during tests for faster startup
-        disabled: true,
-      },
-      plugins: viteConfig.plugins,
       resolve: viteConfig.resolve,
-      root: viteConfig.root || rootDir,
+      root: rootDir,
       // Disable server-specific features for testing
       server: {
         hmr: false,
         watch: null,
-      },
-      // Set up for SSR/testing mode
-      ssr: {
-        noExternal: true,
       },
     };
 

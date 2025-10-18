@@ -55,9 +55,15 @@ describe('viteIntegration', () => {
 
     it('should return the vite config when provided', () => {
       const viteConfig: Config.ViteConfig = {
-        configFile: './vite.config.ts',
+        define: {
+          __DEV__: true,
+        },
         mode: 'development',
-        root: '/path/to/root',
+        resolve: {
+          alias: {
+            '@': '/src',
+          },
+        },
       };
       const config = makeProjectConfig() as Config.ProjectConfig & {
         future?: {experimental_vite?: Config.ViteConfig};
@@ -68,31 +74,20 @@ describe('viteIntegration', () => {
       expect(getViteConfig(config)).toStrictEqual(viteConfig);
     });
 
-    it('should handle complex vite config', () => {
+    it('should handle phase 1 vite config options', () => {
       const viteConfig: Config.ViteConfig = {
-        configFile: false,
-        css: {
-          modules: {},
-        },
         define: {
           __DEV__: true,
-        },
-        esbuild: {
-          jsxFactory: 'h',
+          __TEST__: true,
         },
         mode: 'test',
-        optimizeDeps: {
-          exclude: ['some-package'],
-          include: ['another-package'],
-        },
-        plugins: [],
         resolve: {
           alias: {
             '@': '/src',
+            '@components': '/src/components',
           },
           extensions: ['.ts', '.tsx', '.js'],
         },
-        root: '/app',
       };
       const config = makeProjectConfig() as Config.ProjectConfig & {
         future?: {experimental_vite?: Config.ViteConfig};

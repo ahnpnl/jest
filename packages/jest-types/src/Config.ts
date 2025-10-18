@@ -130,17 +130,12 @@ export type HasteConfig = {
 };
 
 /**
- * Vite configuration options for experimental Vite integration
+ * Vite configuration options for experimental Vite integration (Phase 1)
+ *
+ * Note: This uses a subset of Vite's configuration options.
+ * For full type definitions, refer to vite package types.
  */
 export type ViteConfig = {
-  /**
-   * Path to Vite config file. Set to false to disable automatic config file loading.
-   */
-  configFile?: string | false;
-  /**
-   * Project root directory (default is the location of jest config).
-   */
-  root?: string;
   /**
    * Mode for Vite (default: "test").
    */
@@ -152,46 +147,16 @@ export type ViteConfig = {
     /**
      * Define custom aliases for imports.
      */
-    alias?: Record<string, string>;
+    alias?: Record<string, string | Array<string>>;
     /**
      * List of file extensions to try when resolving imports.
      */
     extensions?: Array<string>;
   };
   /**
-   * Array of Vite plugins to use.
-   */
-  plugins?: Array<unknown>;
-  /**
    * Define global constant replacements.
    */
   define?: Record<string, unknown>;
-  /**
-   * CSS processing options.
-   */
-  css?: {
-    /**
-     * CSS modules configuration.
-     */
-    modules?: unknown;
-  };
-  /**
-   * ESBuild transform options.
-   */
-  esbuild?: unknown | false;
-  /**
-   * Dependency optimization options.
-   */
-  optimizeDeps?: {
-    /**
-     * Dependencies to be included in optimization.
-     */
-    include?: Array<string>;
-    /**
-     * Dependencies to be excluded from optimization.
-     */
-    exclude?: Array<string>;
-  };
 };
 
 /**

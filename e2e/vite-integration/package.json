@@ -1,5 +1,4 @@
 {
   "description": "E2E test for Vite integration with Jest",
-  "private": true,
-  "type": "module"
+  "private": true
 }

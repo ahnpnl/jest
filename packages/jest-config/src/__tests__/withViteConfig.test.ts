@@ -19,16 +19,23 @@ describe('withViteConfig', () => {
 
   it('should merge provided config with defaults', () => {
     const viteConfig: Config.ViteConfig = {
-      configFile: './vite.config.ts',
-      root: '/path/to/root',
+      mode: 'development',
+      resolve: {
+        alias: {
+          '@': '/src',
+        },
+      },
     };
 
     const result = withViteConfig(viteConfig);
 
     expect(result).toStrictEqual({
-      configFile: './vite.config.ts',
-      mode: 'test',
-      root: '/path/to/root',
+      mode: 'development',
+      resolve: {
+        alias: {
+          '@': '/src',
+        },
+      },
     });
   });
 
@@ -44,29 +51,20 @@ describe('withViteConfig', () => {
     });
   });
 
-  it('should handle all vite config options', () => {
+  it('should handle all phase 1 vite config options', () => {
     const viteConfig: Config.ViteConfig = {
-      configFile: false,
-      css: {
-        modules: {},
-      },
       define: {
         __DEV__: true,
+        __TEST__: true,
       },
-      esbuild: false,
       mode: 'development',
-      optimizeDeps: {
-        exclude: ['some-package'],
-        include: ['another-package'],
-      },
-      plugins: [],
       resolve: {
         alias: {
           '@': '/src',
+          '@components': '/src/components',
         },
-        extensions: ['.ts', '.tsx'],
+        extensions: ['.ts', '.tsx', '.js'],
       },
-      root: '/app',
     };
 
     const result = withViteConfig(viteConfig);

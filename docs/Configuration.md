@@ -754,6 +754,8 @@ Default: `undefined`
 
 Enables experimental Vite integration for Jest. This feature allows Jest to leverage Vite's fast transformation and module resolution capabilities during test execution.
 
+**Phase 1 Implementation**: Currently supports `mode`, `define`, and `resolve` configuration options.
+
 When set to `true`, Jest will use Vite with default settings. You can also pass a configuration object to customize Vite's behavior:
 
 ```js tab title="jest.config.js"
@@ -762,12 +764,14 @@ const {defineConfig, withViteConfig} = require('jest-config');
 module.exports = defineConfig({
   future: {
     experimental_vite: withViteConfig({
-      configFile: './vite.config.ts',
       mode: 'test',
       resolve: {
         alias: {
           '@': '/src',
         },
+      },
+      define: {
+        __DEV__: true,
       },
     }),
   },
@@ -780,30 +784,26 @@ import {defineConfig, withViteConfig} from 'jest-config';
 export default defineConfig({
   future: {
     experimental_vite: withViteConfig({
-      configFile: './vite.config.ts',
       mode: 'test',
       resolve: {
         alias: {
           '@': '/src',
         },
       },
+      define: {
+        __DEV__: true,
+      },
     }),
   },
 });
 ```
 
-Available Vite configuration options:
+Available Vite configuration options (Phase 1):
 
-- `configFile` \[string | false]: Path to Vite config file. Set to `false` to disable automatic config file loading.
-- `root` \[string]: Project root directory (default is the location of jest config).
 - `mode` \[string]: Mode for Vite (default: "test").
 - `resolve.alias` \[object]: Define custom aliases for imports.
 - `resolve.extensions` \[array&lt;string&gt;]: List of file extensions to try when resolving imports.
-- `plugins` \[array]: Array of Vite plugins to use.
 - `define` \[object]: Define global constant replacements.
-- `css` \[object]: CSS processing options.
-- `esbuild` \[object | false]: ESBuild transform options.
-- `optimizeDeps` \[object]: Dependency optimization options.
 
 :::caution
 
