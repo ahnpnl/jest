@@ -12,7 +12,7 @@ export type ViteServer = {
   config: unknown;
 };
 
-// Type definition for Vite module (avoiding direct import for optional dependency)
+// Type definition for Vite module
 type ViteModule = {
   createServer: (config: unknown) => Promise<{
     close: () => Promise<void>;
@@ -26,17 +26,7 @@ type ViteModule = {
 async function loadViteModule(): Promise<ViteModule> {
   try {
     // Load tsx for TypeScript config support
-    const tsxModule = await import(
-      /* @ts-expect-error - Dynamic import of optional peer dependency */
-      /* webpackIgnore: true */ 'tsx/cjs/api'
-    ).catch(() => null);
-
-    if (!tsxModule) {
-      throw new Error(
-        'Vite integration requires "tsx" package to be installed. ' +
-          'Please install it with: npm install --save-dev tsx',
-      );
-    }
+    const tsxModule = await import('tsx/cjs/api');
 
     const {require: tsxRequire} = tsxModule as {
       require: (id: string, path: string) => ViteModule;
@@ -48,8 +38,7 @@ async function loadViteModule(): Promise<ViteModule> {
     return viteModule;
   } catch (error) {
     throw new Error(
-      'Vite integration requires "vite" and "tsx" packages to be installed. ' +
-        'Please install them with: npm install --save-dev vite tsx\n' +
+      'Failed to load Vite. Please ensure both "vite" and "tsx" packages are installed.\n' +
         `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
   }

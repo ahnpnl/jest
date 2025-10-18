@@ -6,50 +6,49 @@
  */
 
 import type {Config} from '@jest/types';
-import {makeProjectConfig} from '@jest/test-utils';
-import {getViteConfig, isViteEnabled} from '../viteIntegration';
+import {getViteConfig, isViteEnabled} from '../';
 
-describe('viteIntegration', () => {
+describe('@jest/vite', () => {
   describe('isViteEnabled', () => {
     it('should return false when vite is not configured', () => {
-      const config = makeProjectConfig();
+      const config = {} as Config.ProjectConfig;
       expect(isViteEnabled(config)).toBe(false);
     });
 
     it('should return true when vite is enabled with boolean', () => {
-      const config = makeProjectConfig() as Config.ProjectConfig & {
-        future?: {experimental_vite?: boolean};
-      };
-      (config as unknown as Config.InitialOptions).future = {
-        experimental_vite: true,
-      };
+      const config = {
+        future: {
+          experimental_vite: true,
+        },
+      } as unknown as Config.ProjectConfig;
+
       expect(isViteEnabled(config)).toBe(true);
     });
 
     it('should return true when vite is configured with object', () => {
-      const config = makeProjectConfig() as Config.ProjectConfig & {
-        future?: {experimental_vite?: Config.ViteConfig};
-      };
-      (config as unknown as Config.InitialOptions).future = {
-        experimental_vite: {mode: 'test'},
-      };
+      const config = {
+        future: {
+          experimental_vite: {mode: 'test'},
+        },
+      } as unknown as Config.ProjectConfig;
+
       expect(isViteEnabled(config)).toBe(true);
     });
   });
 
   describe('getViteConfig', () => {
     it('should return null when vite is not configured', () => {
-      const config = makeProjectConfig();
+      const config = {} as Config.ProjectConfig;
       expect(getViteConfig(config)).toBeNull();
     });
 
     it('should return default config when vite is enabled with boolean true', () => {
-      const config = makeProjectConfig() as Config.ProjectConfig & {
-        future?: {experimental_vite?: boolean};
-      };
-      (config as unknown as Config.InitialOptions).future = {
-        experimental_vite: true,
-      };
+      const config = {
+        future: {
+          experimental_vite: true,
+        },
+      } as unknown as Config.ProjectConfig;
+
       expect(getViteConfig(config)).toStrictEqual({mode: 'test'});
     });
 
@@ -65,12 +64,12 @@ describe('viteIntegration', () => {
           },
         },
       };
-      const config = makeProjectConfig() as Config.ProjectConfig & {
-        future?: {experimental_vite?: Config.ViteConfig};
-      };
-      (config as unknown as Config.InitialOptions).future = {
-        experimental_vite: viteConfig,
-      };
+      const config = {
+        future: {
+          experimental_vite: viteConfig,
+        },
+      } as unknown as Config.ProjectConfig;
+
       expect(getViteConfig(config)).toStrictEqual(viteConfig);
     });
 
@@ -89,12 +88,12 @@ describe('viteIntegration', () => {
           extensions: ['.ts', '.tsx', '.js'],
         },
       };
-      const config = makeProjectConfig() as Config.ProjectConfig & {
-        future?: {experimental_vite?: Config.ViteConfig};
-      };
-      (config as unknown as Config.InitialOptions).future = {
-        experimental_vite: viteConfig,
-      };
+      const config = {
+        future: {
+          experimental_vite: viteConfig,
+        },
+      } as unknown as Config.ProjectConfig;
+
       expect(getViteConfig(config)).toStrictEqual(viteConfig);
     });
   });
