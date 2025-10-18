@@ -129,6 +129,82 @@ export type HasteConfig = {
   retainAllFiles?: boolean;
 };
 
+/**
+ * Vite configuration options for experimental Vite integration
+ */
+export type ViteConfig = {
+  /**
+   * Path to Vite config file. Set to false to disable automatic config file loading.
+   */
+  configFile?: string | false;
+  /**
+   * Project root directory (default is the location of jest config).
+   */
+  root?: string;
+  /**
+   * Mode for Vite (default: "test").
+   */
+  mode?: string;
+  /**
+   * Module resolution options.
+   */
+  resolve?: {
+    /**
+     * Define custom aliases for imports.
+     */
+    alias?: Record<string, string>;
+    /**
+     * List of file extensions to try when resolving imports.
+     */
+    extensions?: Array<string>;
+  };
+  /**
+   * Array of Vite plugins to use.
+   */
+  plugins?: Array<unknown>;
+  /**
+   * Define global constant replacements.
+   */
+  define?: Record<string, unknown>;
+  /**
+   * CSS processing options.
+   */
+  css?: {
+    /**
+     * CSS modules configuration.
+     */
+    modules?: unknown;
+  };
+  /**
+   * ESBuild transform options.
+   */
+  esbuild?: unknown | false;
+  /**
+   * Dependency optimization options.
+   */
+  optimizeDeps?: {
+    /**
+     * Dependencies to be included in optimization.
+     */
+    include?: Array<string>;
+    /**
+     * Dependencies to be excluded from optimization.
+     */
+    exclude?: Array<string>;
+  };
+};
+
+/**
+ * Future configuration for experimental features
+ */
+export type FutureConfig = {
+  /**
+   * Enable experimental Vite integration. Can be set to true to use default Vite config,
+   * or provide a ViteConfig object for custom configuration.
+   */
+  experimental_vite?: boolean | ViteConfig;
+};
+
 export type CoverageReporterName = keyof ReportOptions;
 
 export type CoverageReporterWithOptions<K = CoverageReporterName> =

@@ -225,6 +225,79 @@ const HasteConfig = Type.Partial(
   }),
 );
 
+// Vite configuration for experimental Vite integration
+const ViteConfig = Type.Partial(
+  Type.Object({
+    configFile: Type.Union([Type.String(), Type.Literal(false)], {
+      description:
+        'Path to Vite config file. Set to false to disable automatic config file loading.',
+    }),
+    root: Type.String({
+      description:
+        'Project root directory (default is the location of jest config).',
+    }),
+    mode: Type.String({
+      description: 'Mode for Vite (default: "test").',
+      default: 'test',
+    }),
+    resolve: Type.Partial(
+      Type.Object({
+        alias: Type.Record(Type.String(), Type.String(), {
+          description: 'Define custom aliases for imports.',
+        }),
+        extensions: Type.Array(Type.String(), {
+          description: 'List of file extensions to try when resolving imports.',
+        }),
+      }),
+      {
+        description: 'Module resolution options.',
+      },
+    ),
+    plugins: Type.Array(Type.Unknown(), {
+      description: 'Array of Vite plugins to use.',
+    }),
+    define: Type.Record(Type.String(), Type.Unknown(), {
+      description: 'Define global constant replacements.',
+    }),
+    css: Type.Partial(
+      Type.Object({
+        modules: Type.Unknown({
+          description: 'CSS modules configuration.',
+        }),
+      }),
+      {
+        description: 'CSS processing options.',
+      },
+    ),
+    esbuild: Type.Union([Type.Unknown(), Type.Literal(false)], {
+      description: 'ESBuild transform options.',
+    }),
+    optimizeDeps: Type.Partial(
+      Type.Object({
+        include: Type.Array(Type.String(), {
+          description: 'Dependencies to be included in optimization.',
+        }),
+        exclude: Type.Array(Type.String(), {
+          description: 'Dependencies to be excluded from optimization.',
+        }),
+      }),
+      {
+        description: 'Dependency optimization options.',
+      },
+    ),
+  }),
+);
+
+const FutureConfig = Type.Partial(
+  Type.Object({
+    experimental_vite: Type.Union([Type.Boolean(), ViteConfig], {
+      description:
+        'Enable experimental Vite integration. Can be set to true to use default Vite config, ' +
+        'or provide a ViteConfig object for custom configuration.',
+    }),
+  }),
+);
+
 export const InitialOptions = Type.Partial(
   Type.Object({
     automock: Type.Boolean(),
@@ -250,6 +323,7 @@ export const InitialOptions = Type.Partial(
     extensionsToTreatAsEsm: Type.Array(Type.String()),
     fakeTimers: FakeTimers,
     filter: Type.String(),
+    future: FutureConfig,
     findRelatedTests: Type.Boolean(),
     forceCoverageMatch: Type.Array(Type.String()),
     forceExit: Type.Boolean(),
