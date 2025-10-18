@@ -36,7 +36,7 @@ describe('Vite Integration E2E Tests', () => {
   test('Phase 1 options: server.deps configuration', () => {
     const result = runJest(DIR, ['--showConfig']);
     expect(result.exitCode).toBe(0);
-    
+
     // The config is printed but might be in warnings, so just verify no errors
     expect(result.stdout).toContain('"configs"');
     // Verify experimental_vite is mentioned in output (even if in warnings)
@@ -46,7 +46,7 @@ describe('Vite Integration E2E Tests', () => {
   test('Phase 1 options: resolve configuration', () => {
     const result = runJest(DIR, ['--showConfig']);
     expect(result.exitCode).toBe(0);
-    
+
     // Verify config output contains our vite settings
     expect(result.stderr).toContain('experimental_vite');
     expect(result.stderr).toContain('resolve');
@@ -56,7 +56,7 @@ describe('Vite Integration E2E Tests', () => {
   test('Phase 1 options: optimizeDeps configuration', () => {
     const result = runJest(DIR, ['--showConfig']);
     expect(result.exitCode).toBe(0);
-    
+
     // Verify config output contains optimizeDeps settings
     expect(result.stderr).toContain('experimental_vite');
     expect(result.stderr).toContain('optimizeDeps');
@@ -65,7 +65,7 @@ describe('Vite Integration E2E Tests', () => {
   test('can run tests with vite integration enabled', () => {
     // Run a simple test to verify vite integration doesn't break test execution
     const result = runJest(DIR, ['basic.test.js', '--no-cache']);
-    
+
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toContain('PASS');
   });
@@ -74,7 +74,7 @@ describe('Vite Integration E2E Tests', () => {
     test('vite integration works in non-watch mode', () => {
       // Run tests without --watch flag
       const result = runJest(DIR, ['--no-cache']);
-      
+
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toContain('PASS');
       // Vite should start in test mode
@@ -83,17 +83,17 @@ describe('Vite Integration E2E Tests', () => {
 
     test('vite server starts and stops properly in non-watch mode', () => {
       const result = runJest(DIR, ['basic.test.js', '--no-cache']);
-      
+
       expect(result.exitCode).toBe(0);
       // Check that server started
       expect(result.stderr).toContain('Vite dev server started');
-      // Check that server stopped  
+      // Check that server stopped
       expect(result.stderr).toContain('Vite dev server stopped');
     });
 
     test('vite transform pipeline works in non-watch mode', () => {
       const result = runJest(DIR, ['--no-cache']);
-      
+
       expect(result.exitCode).toBe(0);
       // Features should be enabled
       expect(result.stderr).toContain('Vite features enabled');
