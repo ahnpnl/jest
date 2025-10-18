@@ -273,6 +273,24 @@ export default class ViteDevServerManager {
   }
 
   /**
+   * Sets up file change listener for watch mode integration
+   * @param callback - Callback when files change
+   */
+  onFileChange(callback: (file: string) => void | Promise<void>): void {
+    if (!this.viteDevServer) {
+      return;
+    }
+
+    // Use Vite's file watcher (chokidar)
+    this.viteDevServer.watcher.on('change', async file => {
+      // Invalidate module in Vite's cache
+      this.invalidateModule(file);
+      // Notify caller
+      await callback(file);
+    });
+  }
+
+  /**
    * Gets module dependencies from the module graph
    * @param filePath - The file path to get dependencies for
    * @returns Set of file paths that this file depends on
@@ -347,16 +365,30 @@ export default class ViteDevServerManager {
 
   /**
    * Dynamically loads Vite module
+   * Uses tsx.require() if available, falls back to dynamic import()
    * Returns undefined if Vite is not installed
    */
   private async loadVite(): Promise<ViteModuleOrUndefined> {
     try {
-      // Vite is an ESM module, so we need to use dynamic import
-      // This requires Jest to be configured with ESM support
-      // @ts-expect-error - Vite is an optional peer dependency
-      const viteModule: ViteModule = await import('vite');
-      return viteModule;
-    } catch {
+      // Try tsx first - allows loading without ESM configuration
+      try {
+        // @ts-expect-error - tsx is an optional peer dependency
+        const {require: tsxRequire} = await import('tsx/cjs/api');
+        const viteModule = tsxRequire('vite', __dirname);
+        return viteModule;
+      } catch {
+        // tsx not available, fallback to dynamic import
+        // This requires Jest to be configured with ESM support
+        // @ts-expect-error - Vite is an optional peer dependency
+        const viteModule: ViteModule = await import('vite');
+        return viteModule;
+      }
+    } catch (error) {
+      console.warn(
+        'Vite integration enabled but Vite is not installed.\n' +
+          'Install with: npm install --save-dev vite tsx\n' +
+          'Or configure Jest for ESM: https://jestjs.io/docs/ecmascript-modules',
+      );
       return undefined;
     }
   }

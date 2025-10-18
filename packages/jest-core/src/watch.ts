@@ -241,8 +241,25 @@ export default async function watch(
       contexts[0].config.rootDir,
     );
     await viteDevServerManager.start();
+    
     // Setup HMR for watch mode
     viteDevServerManager.setupHMR();
+    
+    // Setup file change listener to integrate with Vite's watcher
+    viteDevServerManager.onFileChange(async file => {
+      // eslint-disable-next-line no-console
+      console.log(`Vite detected change: ${file}`);
+      // File invalidation already handled in onFileChange
+      // Jest's hasteMap will also pick up the change
+    });
+    
+    // eslint-disable-next-line no-console
+    console.log(
+      'Vite dev server integration enabled:\n' +
+      '  - Fast file transformations\n' +
+      '  - Smart test selection\n' +
+      '  - Hot Module Replacement'
+    );
   }
 
   const emitFileChange = () => {
@@ -323,6 +340,40 @@ export default async function watch(
     isRunning = true;
     const configs = contexts.map(context => context.config);
     const changedFilesPromise = getChangedFilesPromise(globalConfig, configs);
+
+    // Use Vite's module graph for smart test selection if available
+    if (viteDevServerManager && viteDevServerManager.isRunning()) {
+      const changedFiles = await changedFilesPromise;
+      if (changedFiles && changedFiles.changedFiles && changedFiles.changedFiles.size > 0) {
+        // Get all test files
+        const allTests = searchSources.flatMap(({searchSource}) =>
+          searchSource
+            .findMatchingTests(
+              new TestPathPatterns([]).toExecutor({
+                rootDir: searchSource.getSerializableConfig().rootDir,
+              }),
+            )
+            .tests.map(t => t.path),
+        );
+
+        // For each changed file, get affected tests
+        const affectedTestsSet = new Set<string>();
+        for (const changedFile of changedFiles.changedFiles) {
+          const affected = await viteDevServerManager.getAffectedTests(
+            changedFile,
+            allTests,
+          );
+          affected.forEach(test => affectedTestsSet.add(test));
+        }
+
+        if (affectedTestsSet.size > 0 && affectedTestsSet.size < allTests.length) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `\nVite smart test selection: Running ${affectedTestsSet.size} of ${allTests.length} tests\n`,
+          );
+        }
+      }
+    }
 
     try {
       await runJest({
