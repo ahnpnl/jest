@@ -26,8 +26,8 @@ type ViteModule = {
 async function loadViteModule(): Promise<ViteModule> {
   try {
     // Try to load tsx first using dynamic import with string to avoid compile-time dependency
-    // @ts-expect-error - Dynamic import of optional peer dependency
     const tsxModule = await import(
+      /* @ts-expect-error - Dynamic import of optional peer dependency */
       /* webpackIgnore: true */ 'tsx/cjs/api'
     ).catch(() => null);
 
