@@ -24,7 +24,11 @@ export {replaceRootDirInPath} from './utils';
 export {default as defaults} from './Defaults';
 export {default as descriptions} from './Descriptions';
 export {constants};
-export {defineViteConfig, getDefaultViteConfig} from './defineViteConfig';
+export {
+  withViteConfig,
+  defineViteConfig,
+  getDefaultViteConfig,
+} from './defineViteConfig';
 export type {ViteConfig} from './defineViteConfig';
 
 type ReadConfig = {

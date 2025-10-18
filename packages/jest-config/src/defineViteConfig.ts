@@ -5,71 +5,46 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import type {
+  AliasOptions,
+  DepOptimizationOptions,
+  ResolveOptions,
+  ServerOptions,
+  UserConfig,
+} from 'vite';
+
 /**
  * Phase 1 Vite configuration options supported by Jest
  * Based on Vitest's testing-focused configuration approach
+ * Reuses types from Vite to avoid maintenance overhead
  */
 export interface ViteConfig {
   /** Root directory for module resolution */
-  root?: string;
+  root?: UserConfig['root'];
   /** Server configuration for dependency handling */
-  server?: {
-    deps?: {
-      /** Inline ESM dependencies that need transformation */
-      inline?: string[];
-      /** Externalize dependencies to avoid transformation */
-      external?: string[];
-      /** Fallback to CJS for legacy dependencies */
-      fallbackCJS?: boolean;
-    };
-    fs?: {
-      /** List of directories allowed for file system access */
-      allow?: string[];
-      /** Restrict file system access outside of workspace */
-      strict?: boolean;
-    };
-  };
+  server?: Pick<ServerOptions, 'deps' | 'fs'>;
   /** Module resolution configuration (critical for testing) */
-  resolve?: {
-    /** Export conditions for module resolution */
-    conditions?: string[];
-    /** Path aliases for module resolution */
-    alias?: Record<string, string>;
-    /** File extensions to resolve */
-    extensions?: string[];
-    /** Package.json fields for resolution */
-    mainFields?: string[];
-  };
+  resolve?: Pick<ResolveOptions, 'conditions' | 'alias' | 'extensions' | 'mainFields'>;
   /** Dependency optimization for better performance */
-  optimizeDeps?: {
-    /** Pre-bundle these dependencies */
-    include?: string[];
-    /** Exclude dependencies from bundling */
-    exclude?: string[];
-    /** esbuild configuration for optimization */
-    esbuildOptions?: {
-      target?: string;
-      [key: string]: unknown;
-    };
-  };
+  optimizeDeps?: Pick<DepOptimizationOptions, 'include' | 'exclude' | 'esbuildOptions'>;
   /** Base public path when serving assets */
-  base?: string;
+  base?: UserConfig['base'];
   /** Path to external vite.config.ts file */
-  configFile?: string | false;
+  configFile?: UserConfig['configFile'];
 }
 
 /**
- * Define Vite configuration for Jest testing with type safety
+ * Create Vite configuration for Jest testing with type safety and sensible defaults
  * Supports Phase 1 options: server, resolve, optimizeDeps, root, base, configFile
  * 
  * @example
  * ```typescript
  * import {defineConfig} from 'jest';
- * import {defineViteConfig} from 'jest-config';
+ * import {withViteConfig} from 'jest-config';
  * 
  * export default defineConfig({
  *   future: {
- *     experimental_vite: defineViteConfig({
+ *     experimental_vite: withViteConfig({
  *       root: process.cwd(),
  *       server: {
  *         deps: {
@@ -86,7 +61,7 @@ export interface ViteConfig {
  * });
  * ```
  */
-export function defineViteConfig(config: ViteConfig = {}): ViteConfig {
+export function withViteConfig(config: ViteConfig = {}): ViteConfig {
   // Merge user config with sensible defaults
   return {
     root: config.root ?? process.cwd(),
@@ -125,10 +100,15 @@ export function defineViteConfig(config: ViteConfig = {}): ViteConfig {
 }
 
 /**
- * @deprecated Use defineViteConfig() instead
- * Default Vite configuration for Jest testing (Phase 1)
- * Based on Vitest's testing-focused configuration approach
+ * @deprecated Use withViteConfig() instead
+ */
+export function defineViteConfig(config: ViteConfig = {}): ViteConfig {
+  return withViteConfig(config);
+}
+
+/**
+ * @deprecated Use withViteConfig() instead
  */
 export function getDefaultViteConfig(): ViteConfig {
-  return defineViteConfig();
+  return withViteConfig();
 }
