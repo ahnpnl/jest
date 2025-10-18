@@ -192,9 +192,10 @@ export default async function runJest({
     contexts.map(async (context, index) => {
       const searchSource = searchSources[index];
       // Pass other search sources only when findRelatedTests is used with multiple projects
-      const otherSearchSources = globalConfig.findRelatedTests && searchSources.length > 1
-        ? searchSources.filter((_, i) => i !== index)
-        : undefined;
+      const otherSearchSources =
+        globalConfig.findRelatedTests && searchSources.length > 1
+          ? searchSources.filter((_, i) => i !== index)
+          : undefined;
       const matches = await getTestPaths(
         globalConfig,
         context.config,

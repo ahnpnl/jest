@@ -186,10 +186,11 @@ export default class SearchSource {
     // Expand allPaths to include files from this project that depend on changed files in other projects
     const expandedPaths = new Set(allPaths);
     if (otherSearchSources && otherSearchSources.length > 0) {
-      const filesInThisProject = await this._findFilesInThisProjectDependingOnOtherProjects(
-        otherSearchSources,
-        allPaths,
-      );
+      const filesInThisProject =
+        await this._findFilesInThisProjectDependingOnOtherProjects(
+          otherSearchSources,
+          allPaths,
+        );
       filesInThisProject.forEach(f => expandedPaths.add(f));
     }
 
@@ -212,7 +213,9 @@ export default class SearchSource {
       {skipNodeResolution: this._context.config.skipNodeResolution},
     );
 
-    const allPathsAbsolute = new Set([...expandedPaths].map(p => path.resolve(p)));
+    const allPathsAbsolute = new Set(
+      [...expandedPaths].map(p => path.resolve(p)),
+    );
 
     const collectCoverageFrom = new Set<string>();
 
@@ -249,15 +252,21 @@ export default class SearchSource {
     changedPathsInOtherProjects: Set<string>,
   ): Promise<Array<string>> {
     const filesInThisProject: Array<string> = [];
-    
+
     // Get package names from other projects to detect cross-project imports
     const otherProjectPackageNames = new Map<string, string>();
     for (const otherSource of otherSearchSources) {
-      const pkgPath = path.join(otherSource._context.config.rootDir, 'package.json');
+      const pkgPath = path.join(
+        otherSource._context.config.rootDir,
+        'package.json',
+      );
       try {
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
         if (pkg.name) {
-          otherProjectPackageNames.set(pkg.name, otherSource._context.config.rootDir);
+          otherProjectPackageNames.set(
+            pkg.name,
+            otherSource._context.config.rootDir,
+          );
         }
       } catch {
         // No package.json or invalid JSON, skip
@@ -318,7 +327,11 @@ export default class SearchSource {
       const resolvedPaths = paths.map(p =>
         path.resolve(this._context.config.cwd, p),
       );
-      return this.findRelatedTests(new Set(resolvedPaths), collectCoverage, otherSearchSources);
+      return this.findRelatedTests(
+        new Set(resolvedPaths),
+        collectCoverage,
+        otherSearchSources,
+      );
     }
     return {tests: []};
   }
