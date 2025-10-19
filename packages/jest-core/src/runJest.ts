@@ -36,6 +36,7 @@ import getNoTestsFoundMessage from './getNoTestsFoundMessage';
 import serializeToJSON from './lib/serializeToJSON';
 import runGlobalHook from './runGlobalHook';
 import type {Filter, TestRunData} from './types';
+import {initializeViteIntegration} from './viteIntegration';
 
 const getTestPaths = async (
   globalConfig: Config.GlobalConfig,
@@ -166,6 +167,28 @@ export default async function runJest({
   );
   const sequencer = new Sequencer({contexts, globalConfig});
   let allTests: Array<Test> = [];
+
+  // Initialize Vite integration for each context if enabled
+  performance.mark('jest/viteSetup:start');
+  const viteServers = await Promise.all(
+    contexts.map(async context => {
+      const server = await initializeViteIntegration(
+        context.config,
+        context.config.rootDir,
+      );
+      return {context, server};
+    }),
+  );
+  const activeViteServers = viteServers.filter(({server}) => server !== null);
+
+  if (activeViteServers.length > 0) {
+    outputStream.write(
+      chalk.cyan(
+        `\n[Vite] Initialized ${activeViteServers.length} Vite server(s) for testing\n`,
+      ),
+    );
+  }
+  performance.mark('jest/viteSetup:end');
 
   if (changedFilesPromise && globalConfig.watch) {
     const {repos} = await changedFilesPromise;
@@ -333,4 +356,20 @@ export default async function runJest({
     testResultsProcessor: globalConfig.testResultsProcessor,
   });
   performance.mark('jest/processResults:end');
+
+  // Clean up Vite servers
+  if (activeViteServers.length > 0) {
+    performance.mark('jest/viteTeardown:start');
+    await Promise.all(
+      activeViteServers.map(async ({server}) => {
+        if (server) {
+          await server.close();
+        }
+      }),
+    );
+    outputStream.write(
+      chalk.cyan(`[Vite] Closed ${activeViteServers.length} Vite server(s)\n`),
+    );
+    performance.mark('jest/viteTeardown:end');
+  }
 }

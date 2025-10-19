@@ -12,6 +12,15 @@ export default defineConfig({
   future: {
     experimental_vite: withViteConfig({
       mode: 'test',
+      define: {
+        __TEST__: true,
+        __DEV__: false,
+      },
+      resolve: {
+        alias: {
+          '@': __dirname,
+        },
+      },
     }),
   },
   testEnvironment: 'node',
