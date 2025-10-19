@@ -90,13 +90,13 @@ const defaultOptions: Config.DefaultOptions = {
   testRunner: 'jest-circus/runner',
   testSequencer: '@jest/test-sequencer',
   transformIgnorePatterns: [NODE_MODULES_REGEXP, `\\.pnp\\.[^\\${sep}]+$`],
+  unstable_useGlobalDependencyGraph: false,
   useStderr: false,
   waitForUnhandledRejections: false,
   watch: false,
   watchPathIgnorePatterns: [],
   watchman: true,
   workerThreads: false,
-  unstable_useGlobalDependencyGraph: false,
 };
 
 export default defaultOptions;

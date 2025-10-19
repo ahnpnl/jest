@@ -8,7 +8,6 @@
 import * as path from 'path';
 import type {TestContext} from '@jest/test-result';
 import type {DependencyResolver} from 'jest-resolve-dependencies';
-import type {IHasteFS} from 'jest-haste-map';
 
 /**
  * Module node in the global dependency graph.
@@ -38,20 +37,16 @@ interface ProjectMetadata {
   packageName: string | null;
 }
 
-function normalizePosix(filePath: string): string {
-  return filePath.replace(/\\/g, '/');
-}
-
 /**
  * GlobalDependencyGraph - A centralized dependency graph for all workspace projects.
- * 
+ *
  * Inspired by Vite's module graph but optimized for Jest's architecture:
  * - Reuses hasteFS for file/dependency data
  * - Builds bidirectional graph (importers + imported modules)
  * - Provides O(1) lookups for "what depends on this file?"
  * - Lazy initialization - only builds graph when needed
  * - Invalidation support for watch mode
- * 
+ *
  * Key differences from Vite:
  * - Static analysis (hasteFS) vs runtime transformation
  * - Per-project test isolation vs single server context
@@ -59,25 +54,25 @@ function normalizePosix(filePath: string): string {
  */
 export class GlobalDependencyGraph {
   private projects: Array<ProjectMetadata> = [];
-  
+
   /** Map from absolute file path to ModuleNode */
   private fileToModule = new Map<string, ModuleNode>();
-  
+
   /** Map from package name to project metadata */
   private packageToProject = new Map<string, ProjectMetadata>();
-  
+
   /** Map from project root to all files in that project */
   private projectToFiles = new Map<string, Set<string>>();
-  
+
   /** Graph built flag */
   private isGraphBuilt = false;
-  
+
   /** Cache stats for monitoring */
   private stats = {
-    totalModules: 0,
-    totalEdges: 0,
-    crossProjectEdges: 0,
     buildTimeMs: 0,
+    crossProjectEdges: 0,
+    totalEdges: 0,
+    totalModules: 0,
   };
 
   addProject(
@@ -116,12 +111,12 @@ export class GlobalDependencyGraph {
   /**
    * Build the complete dependency graph for all projects.
    * This is done once and reused for all subsequent queries.
-   * 
+   *
    * Time complexity: O(n * m * d) where:
    * - n = total files across all projects
    * - m = average dependencies per file
    * - d = number of projects (for cross-project resolution)
-   * 
+   *
    * Space complexity: O(n + e) where:
    * - n = number of files
    * - e = number of edges (dependencies)
@@ -132,7 +127,7 @@ export class GlobalDependencyGraph {
     }
 
     const startTime = performance.now();
-    
+
     // Clear existing graph
     this.fileToModule.clear();
     this.projectToFiles.clear();
@@ -171,7 +166,7 @@ export class GlobalDependencyGraph {
         if (!rawDependencies) continue;
 
         // Store raw imports for later analysis
-        rawDependencies.forEach(dep => sourceNode.rawImports.add(dep));
+        for (const dep of rawDependencies) sourceNode.rawImports.add(dep);
 
         // Resolve dependencies to actual files
         try {
@@ -181,7 +176,7 @@ export class GlobalDependencyGraph {
 
           for (const depFile of resolvedDeps) {
             const targetNode = this.fileToModule.get(depFile);
-            
+
             if (targetNode) {
               // Add bidirectional edge
               sourceNode.importedModules.add(targetNode);
@@ -218,11 +213,8 @@ export class GlobalDependencyGraph {
   ): void {
     for (const rawDep of rawDependencies) {
       // Check if this is a workspace package import
-      for (const [packageName, _project] of this.packageToProject) {
-        if (
-          rawDep === packageName ||
-          rawDep.indexOf(`${packageName}/`) === 0
-        ) {
+      for (const [packageName] of this.packageToProject) {
+        if (rawDep === packageName || rawDep.indexOf(`${packageName}/`) === 0) {
           // This file imports from another workspace package
           // We don't know the exact file, but we can mark this relationship
           // for quick filtering later
@@ -242,11 +234,11 @@ export class GlobalDependencyGraph {
   /**
    * Find all test files that depend on the given changed files.
    * This is the main query method used by findRelatedTests.
-   * 
+   *
    * Time complexity: O(k + r) where:
    * - k = number of changed files
    * - r = total number of files that transitively depend on changed files
-   * 
+   *
    * This is MUCH faster than O(n) iteration over all files!
    */
   findAffectedTests(changedFiles: Set<string>): Set<string> {
@@ -367,14 +359,21 @@ export class GlobalDependencyGraph {
   /**
    * Get statistics about the dependency graph
    */
-  getStats() {
+  getStats(): {
+    averageImportersPerFile: number;
+    buildTimeMs: number;
+    crossProjectEdges: number;
+    projects: number;
+    totalEdges: number;
+    totalModules: number;
+  } {
     return {
       ...this.stats,
-      projects: this.projects.length,
       averageImportersPerFile:
         this.stats.totalModules > 0
           ? this.stats.totalEdges / this.stats.totalModules
           : 0,
+      projects: this.projects.length,
     };
   }
 
@@ -404,9 +403,9 @@ export class GlobalDependencyGraph {
 
   private convertGlobToRegex(pattern: string): RegExp {
     const regexPattern = pattern
-      .replace(/\*\*/g, '.*')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\?/g, '.');
+      .replaceAll('**', '.*')
+      .replaceAll('*', '[^/]*')
+      .replaceAll('?', '.');
     return new RegExp(regexPattern);
   }
 
@@ -441,3 +440,5 @@ export class GlobalDependencyGraph {
     return {edges, nodes};
   }
 }
+
+export default GlobalDependencyGraph;

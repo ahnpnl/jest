@@ -5,9 +5,9 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'graceful-fs';
 import micromatch from 'micromatch';
 import type {TestPathPatternsExecutor} from '@jest/pattern';
 import type {Test, TestContext} from '@jest/test-result';
@@ -58,7 +58,7 @@ const hasSCM = (changedFilesInfo: ChangedFiles) => {
 };
 
 function normalizePosix(filePath: string) {
-  return filePath.replace(/\\/g, '/');
+  return filePath.replaceAll('\\', '/');
 }
 
 export default class SearchSource {
@@ -251,7 +251,7 @@ export default class SearchSource {
           otherSearchSources,
           allPaths,
         );
-      filesInThisProject.forEach(f => expandedPaths.add(f));
+      for (const f of filesInThisProject) expandedPaths.add(f);
     }
 
     if (!collectCoverage) {
@@ -321,7 +321,7 @@ export default class SearchSource {
         'package.json',
       );
       try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
         if (pkg.name) {
           otherProjectPackageNames.set(
             pkg.name,
