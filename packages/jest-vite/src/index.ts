@@ -5,43 +5,64 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import type {InlineConfig, ResolvedConfig, ViteDevServer} from 'vite';
 import type {Config} from '@jest/types';
 
 export type ViteServer = {
   close: () => Promise<void>;
-  config: unknown;
-};
-
-// Type definition for Vite module
-type ViteModule = {
-  createServer: (config: unknown) => Promise<{
-    close: () => Promise<void>;
-    config: unknown;
-  }>;
+  config: ResolvedConfig;
 };
 
 /**
- * Loads Vite module using tsx for TypeScript support
+ * Loads Vite module using vite-node for better ESM support
  */
-async function loadViteModule(): Promise<ViteModule> {
+async function loadViteModule(): Promise<typeof import('vite')> {
   try {
-    // Load tsx for TypeScript config support
-    const tsxModule = await import('tsx/cjs/api');
-
-    const {require: tsxRequire} = tsxModule as {
-      require: (id: string, path: string) => ViteModule;
-    };
-
-    // Use tsx to load Vite (supports TypeScript configs)
-    // Vite is ESM-only, so we need tsx to load it properly
-    const viteModule = tsxRequire('vite', __dirname);
-    return viteModule;
+    // Vite is now a peer dependency, so we can import it directly
+    // vite-node provides better ESM support for dynamic imports
+    return await import('vite');
   } catch (error) {
     throw new Error(
-      'Failed to load Vite. Please ensure both "vite" and "tsx" packages are installed.\n' +
+      'Failed to load Vite. Please ensure "vite" is installed as a peer dependency.\n' +
         `Error: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+/**
+ * Converts Jest's ViteConfig to Vite's InlineConfig format
+ */
+function convertToViteConfig(
+  viteConfig: Config.ViteConfig,
+  rootDir: string,
+): InlineConfig {
+  const config: InlineConfig = {
+    define: viteConfig.define,
+    mode: viteConfig.mode || 'test',
+    root: rootDir,
+    // Disable server-specific features for testing
+    server: {
+      hmr: false,
+      watch: null,
+    },
+  };
+
+  // Convert resolve configuration
+  if (viteConfig.resolve) {
+    config.resolve = {};
+
+    if (viteConfig.resolve.alias) {
+      // Convert Record<string, string | string[]> to Vite's alias format
+      // Vite accepts both object and array formats
+      config.resolve.alias = viteConfig.resolve.alias as Record<string, string>;
+    }
+
+    if (viteConfig.resolve.extensions) {
+      config.resolve.extensions = viteConfig.resolve.extensions;
+    }
+  }
+
+  return config;
 }
 
 /**
@@ -54,20 +75,10 @@ export async function createViteServer(
   try {
     const vite = await loadViteModule();
 
-    // Merge user config with test defaults (Phase 1: mode, define, resolve only)
-    const config = {
-      define: viteConfig.define,
-      mode: viteConfig.mode || 'test',
-      resolve: viteConfig.resolve,
-      root: rootDir,
-      // Disable server-specific features for testing
-      server: {
-        hmr: false,
-        watch: null,
-      },
-    };
+    // Convert Jest config to Vite's format (Phase 1: mode, define, resolve only)
+    const config = convertToViteConfig(viteConfig, rootDir);
 
-    const server = await vite.createServer(config);
+    const server: ViteDevServer = await vite.createServer(config);
 
     return {
       close: async () => {

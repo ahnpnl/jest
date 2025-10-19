@@ -3,7 +3,7 @@
   "version": "30.2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jestjs/jest.git",
+    "url": "https://github.com/ahnpnl/jest.git",
     "directory": "packages/jest-vite"
   },
   "license": "MIT",
@@ -20,7 +20,13 @@
   },
   "dependencies": {
     "@jest/types": "workspace:*",
-    "tsx": "^4.0.0",
+    "vite-node": "^2.0.0 || ^3.0.0"
+  },
+  "peerDependencies": {
+    "vite": "^5.0.0 || ^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "*",
     "vite": "^5.0.0"
   },
   "engines": {
