@@ -168,25 +168,30 @@ export default async function runJest({
   const sequencer = new Sequencer({contexts, globalConfig});
   let allTests: Array<Test> = [];
 
-  // Initialize Vite integration for each context if enabled
+  // Initialize single global Vite server if any context has Vite enabled
+  // This follows Vitest's approach of using one Vite server shared across all projects
   performance.mark('jest/viteSetup:start');
-  const viteServers = await Promise.all(
-    contexts.map(async context => {
-      const server = await initializeViteIntegration(
-        context.config,
-        context.config.rootDir,
-      );
-      return {context, server};
-    }),
-  );
-  const activeViteServers = viteServers.filter(({server}) => server !== null);
+  let globalViteServer: Awaited<ReturnType<typeof initializeViteIntegration>> =
+    null;
 
-  if (activeViteServers.length > 0) {
-    outputStream.write(
-      chalk.cyan(
-        `\n[Vite] Initialized ${activeViteServers.length} Vite server(s) for testing\n`,
-      ),
+  // Check if any context has Vite enabled and use the first one's config
+  // In multi-project setups, all projects should ideally share the same Vite config
+  const {isViteEnabled: checkViteEnabled} = await import('@jest/vite');
+  const viteEnabledContext = contexts.find(context =>
+    checkViteEnabled(context.config),
+  );
+
+  if (viteEnabledContext) {
+    globalViteServer = await initializeViteIntegration(
+      viteEnabledContext.config,
+      viteEnabledContext.config.rootDir,
     );
+
+    if (globalViteServer) {
+      outputStream.write(
+        chalk.cyan('\n[Vite] Initialized global Vite server for testing\n'),
+      );
+    }
   }
   performance.mark('jest/viteSetup:end');
 
@@ -357,19 +362,11 @@ export default async function runJest({
   });
   performance.mark('jest/processResults:end');
 
-  // Clean up Vite servers
-  if (activeViteServers.length > 0) {
+  // Clean up global Vite server
+  if (globalViteServer) {
     performance.mark('jest/viteTeardown:start');
-    await Promise.all(
-      activeViteServers.map(async ({server}) => {
-        if (server) {
-          await server.close();
-        }
-      }),
-    );
-    outputStream.write(
-      chalk.cyan(`[Vite] Closed ${activeViteServers.length} Vite server(s)\n`),
-    );
+    await globalViteServer.close();
+    outputStream.write(chalk.cyan('[Vite] Closed global Vite server\n'));
     performance.mark('jest/viteTeardown:end');
   }
 }

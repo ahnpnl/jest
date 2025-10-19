@@ -6,12 +6,12 @@ This directory contains an end-to-end test demonstrating Jest's experimental Vit
 
 This e2e test shows that:
 
-1. **Vite Server Initialization**: When Jest starts, it initializes a Vite dev server for each project context that has Vite integration enabled
+1. **Global Vite Server**: When Jest starts with Vite integration enabled, it initializes a single global Vite dev server shared across all projects (similar to Vitest's approach)
 2. **Configuration Support**: The Phase 1 Vite integration supports:
    - `mode`: Vite mode (e.g., 'test', 'development')
    - `define`: Global constant replacements
    - `resolve.alias`: Import path aliases
-3. **Lifecycle Management**: Jest properly initializes and cleans up Vite servers during test execution
+3. **Lifecycle Management**: Jest properly initializes and cleans up the global Vite server during test execution
 4. **Actual Configuration Usage**: Phase 1 includes utility functions demonstrating how each configuration option is used
 
 ## Running the Test
@@ -23,13 +23,13 @@ yarn jest e2e/vite-integration
 
 When you run this, you should see:
 ```
-[Vite] Initialized 1 Vite server(s) for testing
+[Vite] Initialized global Vite server for testing
 [Vite] Mode: test
 [Vite] Global constants defined: __DEV__, __TEST__
 [Vite] Path aliases configured: 1
  PASS  e2e/vite-integration/__tests__/sum.test.ts
  PASS  e2e/vite-integration/__tests__/vite-config.test.ts
-[Vite] Closed 1 Vite server(s)
+[Vite] Closed global Vite server
 ```
 
 ## Configuration
