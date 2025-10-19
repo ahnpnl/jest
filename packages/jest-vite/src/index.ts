@@ -5,6 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
+import {config as dotenvConfig} from 'dotenv';
+import * as dotenvExpand from 'dotenv-expand';
 import type {InlineConfig, ResolvedConfig, ViteDevServer} from 'vite';
 import type {Config} from '@jest/types';
 
@@ -176,4 +180,165 @@ export function resolveAlias(
     }
   }
   return importPath;
+}
+
+/**
+ * Environment variables loaded from .env files
+ * Following Vite's behavior: https://vite.dev/guide/env-and-mode.html#modes
+ */
+export type EnvVariables = Record<string, string>;
+
+/**
+ * Loads environment variables from .env files based on mode.
+ * Follows Vite's .env file loading priority:
+ * 1. .env.[mode].local
+ * 2. .env.[mode]
+ * 3. .env.local
+ * 4. .env
+ *
+ * @param rootDir - Root directory to search for .env files
+ * @param mode - Vite mode (e.g., 'test', 'development', 'production')
+ * @returns Object containing loaded environment variables
+ */
+export function loadEnvFiles(rootDir: string, mode: string): EnvVariables {
+  const envFiles = [
+    `.env`,
+    `.env.local`,
+    `.env.${mode}`,
+    `.env.${mode}.local`,
+  ];
+
+  let envVars: EnvVariables = {};
+
+  // Load files in priority order (later files override earlier ones)
+  for (const file of envFiles) {
+    const filePath = path.join(rootDir, file);
+    if (fs.existsSync(filePath)) {
+      try {
+        // Use override: true to allow later files to override earlier ones
+        const result = dotenvConfig({path: filePath, override: true});
+        if (result.parsed) {
+          // Expand variables (e.g., ${VAR_NAME})
+          const expanded = dotenvExpand.expand({
+            parsed: result.parsed,
+          });
+          if (expanded.parsed) {
+            envVars = {...envVars, ...expanded.parsed};
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to load ${file}:`, error);
+      }
+    }
+  }
+
+  return envVars;
+}
+
+/**
+ * Injects environment variables into process.env and returns variables for import.meta.env
+ * Following Vite's behavior, only variables prefixed with VITE_ are exposed to import.meta.env
+ *
+ * @param envVars - Environment variables loaded from .env files
+ * @param mode - Vite mode
+ * @returns Variables to be injected into import.meta.env and global
+ */
+export function injectEnvVariables(
+  envVars: EnvVariables,
+  mode: string,
+): EnvVariables {
+  // Inject all variables into process.env
+  for (const [key, value] of Object.entries(envVars)) {
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+
+  // Only expose VITE_* prefixed variables to import.meta.env
+  // Plus standard Vite env variables
+  const importMetaEnv: EnvVariables = {
+    MODE: mode,
+    DEV: (mode !== 'production').toString(),
+    PROD: (mode === 'production').toString(),
+    SSR: 'false', // Jest tests are not SSR
+  };
+
+  for (const [key, value] of Object.entries(envVars)) {
+    if (key.startsWith('VITE_')) {
+      importMetaEnv[key] = value;
+    }
+  }
+
+  return importMetaEnv;
+}
+
+/**
+ * Merges Vite's define config with Jest's globals config.
+ * When both exist, define values take precedence over globals.
+ *
+ * @param viteDefines - Define configuration from Vite config
+ * @param jestGlobals - Globals configuration from Jest config
+ * @returns Merged configuration
+ */
+export function mergeDefinesAndGlobals(
+  viteDefines: Record<string, unknown> | undefined,
+  jestGlobals: Config.ConfigGlobals | undefined,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+
+  // Start with Jest globals
+  if (jestGlobals) {
+    Object.assign(merged, jestGlobals);
+  }
+
+  // Override with Vite defines (takes precedence)
+  if (viteDefines) {
+    Object.assign(merged, viteDefines);
+  }
+
+  return merged;
+}
+
+/**
+ * Creates global variables that should be injected into the test environment.
+ * Makes variables available as:
+ * - global.* (for CJS)
+ * - import.meta.jest.* (for ESM)
+ *
+ * @param defines - Merged define configuration
+ * @param envVars - Environment variables for import.meta.env
+ * @returns Object to inject into global scope
+ */
+export function createGlobalVariables(
+  defines: Record<string, unknown>,
+  envVars: EnvVariables,
+): {
+  defines: Record<string, unknown>;
+  importMetaEnv: EnvVariables;
+} {
+  return {
+    defines,
+    importMetaEnv: envVars,
+  };
+}
+
+/**
+ * Creates a Vite-based resolver function that can be used by Jest.
+ * This integrates Vite's module resolution with Jest's resolver.
+ *
+ * Note: This is a placeholder implementation for Phase 1.
+ * Full integration with Jest's resolver will be in Phase 2.
+ *
+ * @param _viteServer - Vite server instance with resolved config (unused in Phase 1)
+ * @returns Resolver function that returns null (placeholder)
+ */
+export async function createViteResolver(
+  _viteServer: ViteServer,
+): Promise<(id: string, basedir: string) => Promise<string | null>> {
+  return async (_id: string, _basedir: string): Promise<string | null> => {
+    // Placeholder for Phase 1
+    // Phase 2 will integrate Vite's actual module resolution
+    // using viteServer.config and Vite's resolver plugins
+    return null;
+  };
 }
