@@ -47,7 +47,38 @@ export async function initializeViteIntegration(
   try {
     const server = await createViteServer(viteConfig, rootDir);
     if (server) {
+      // Log Vite server initialization with configuration details
       console.warn('[Jest Vite] Vite server initialized for testing');
+      console.warn(
+        `[Jest Vite] Mode: ${server.config.mode || viteConfig.mode || 'test'}`,
+      );
+
+      // Log define configuration
+      if (viteConfig.define && Object.keys(viteConfig.define).length > 0) {
+        console.warn(
+          `[Jest Vite] Global constants defined: ${Object.keys(viteConfig.define).join(', ')}`,
+        );
+      }
+
+      // Log resolve.alias configuration
+      if (server.config.resolve?.alias) {
+        const aliasCount = Array.isArray(server.config.resolve.alias)
+          ? server.config.resolve.alias.length
+          : Object.keys(server.config.resolve.alias).length;
+        if (aliasCount > 0) {
+          console.warn(`[Jest Vite] Path aliases configured: ${aliasCount}`);
+        }
+      }
+
+      // Log resolve.extensions configuration
+      if (
+        viteConfig.resolve?.extensions &&
+        viteConfig.resolve.extensions.length > 0
+      ) {
+        console.warn(
+          `[Jest Vite] Custom extensions: ${viteConfig.resolve.extensions.join(', ')}`,
+        );
+      }
     }
     return server;
   } catch (error) {

@@ -121,3 +121,59 @@ export function getViteConfig(
 
   return viteOption;
 }
+
+/**
+ * Applies Vite's define configuration to replace global constants.
+ * This demonstrates how the `define` option is used in Phase 1.
+ *
+ * @param code - Source code to transform
+ * @param defines - Define configuration from Vite config
+ * @returns Transformed code with constants replaced
+ *
+ * @example
+ * ```typescript
+ * const code = 'if (__DEV__) { console.log("dev mode"); }';
+ * const result = applyDefines(code, { __DEV__: 'false' });
+ * // Result: 'if (false) { console.log("dev mode"); }'
+ * ```
+ */
+export function applyDefines(
+  code: string,
+  defines: Record<string, unknown>,
+): string {
+  let result = code;
+  for (const [key, value] of Object.entries(defines)) {
+    // Simple string replacement for demonstration
+    // In Phase 2, this will use Vite's actual transformation
+    const regex = new RegExp(`\\b${key}\\b`, 'g');
+    result = result.replace(regex, JSON.stringify(value));
+  }
+  return result;
+}
+
+/**
+ * Resolves a module path using Vite's alias configuration.
+ * This demonstrates how the `resolve.alias` option is used in Phase 1.
+ *
+ * @param importPath - The import path to resolve
+ * @param aliases - Alias configuration from Vite config
+ * @returns Resolved path
+ *
+ * @example
+ * ```typescript
+ * const resolved = resolveAlias('@/utils', { '@': '/src' });
+ * // Result: '/src/utils'
+ * ```
+ */
+export function resolveAlias(
+  importPath: string,
+  aliases: Record<string, string | Array<string>>,
+): string {
+  for (const [alias, target] of Object.entries(aliases)) {
+    if (importPath === alias || importPath.startsWith(`${alias}/`)) {
+      const targetPath = Array.isArray(target) ? target[0] : target;
+      return importPath.replace(alias, targetPath);
+    }
+  }
+  return importPath;
+}

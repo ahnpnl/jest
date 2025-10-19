@@ -11,11 +11,11 @@ export default defineConfig({
   displayName: 'vite-integration-test',
   future: {
     experimental_vite: withViteConfig({
-      mode: 'test',
       define: {
-        __TEST__: true,
         __DEV__: false,
+        __TEST__: true,
       },
+      mode: 'test',
       resolve: {
         alias: {
           '@': __dirname,
