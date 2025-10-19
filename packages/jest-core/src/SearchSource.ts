@@ -18,6 +18,7 @@ import {escapePathForRegex} from 'jest-regex-util';
 import {DependencyResolver} from 'jest-resolve-dependencies';
 import {buildSnapshotResolver} from 'jest-snapshot';
 import {globsToMatcher} from 'jest-util';
+import type GlobalDependencyGraph from './GlobalDependencyGraph';
 import type {Filter, Stats, TestPathCases} from './types';
 
 export type SearchResult = {
@@ -57,7 +58,7 @@ const hasSCM = (changedFilesInfo: ChangedFiles) => {
 };
 
 function normalizePosix(filePath: string) {
-  return filePath.replaceAll('\\', '/');
+  return filePath.replace(/\\/g, '/');
 }
 
 export default class SearchSource {
@@ -180,10 +181,69 @@ export default class SearchSource {
     allPaths: Set<string>,
     collectCoverage: boolean,
     otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     const dependencyResolver = await this._getOrBuildDependencyResolver();
 
-    // Expand allPaths to include files from this project that depend on changed files in other projects
+    // Use global dependency graph if available (feature flag enabled)
+    if (globalGraph) {
+      const relatedFiles = globalGraph.findRelatedTests(
+        allPaths,
+        this._context.config.rootDir,
+      );
+
+      if (!collectCoverage) {
+        return {
+          tests: toTests(
+            this._context,
+            relatedFiles.filter(f => this.isTestFilePath(f)),
+          ),
+        };
+      }
+
+      // For coverage collection, we still need to use dependencyResolver
+      // to get the full dependency map
+      const testModulesMap = dependencyResolver.resolveInverseModuleMap(
+        new Set(relatedFiles),
+        this.isTestFilePath.bind(this),
+        {skipNodeResolution: this._context.config.skipNodeResolution},
+      );
+
+      const allPathsAbsolute = new Set([...allPaths].map(p => path.resolve(p)));
+      const collectCoverageFrom = new Set<string>();
+
+      for (const testModule of testModulesMap) {
+        if (!testModule.dependencies) {
+          continue;
+        }
+
+        for (const p of testModule.dependencies) {
+          if (!allPathsAbsolute.has(p)) {
+            continue;
+          }
+
+          const filename = replaceRootDirInPath(
+            this._context.config.rootDir,
+            p,
+          );
+          collectCoverageFrom.add(
+            path.isAbsolute(filename)
+              ? path.relative(this._context.config.rootDir, filename)
+              : filename,
+          );
+        }
+      }
+
+      return {
+        collectCoverageFrom,
+        tests: toTests(
+          this._context,
+          testModulesMap.map(testModule => testModule.file),
+        ),
+      };
+    }
+
+    // Original implementation: Expand allPaths to include files from this project that depend on changed files in other projects
     const expandedPaths = new Set(allPaths);
     if (otherSearchSources && otherSearchSources.length > 0) {
       const filesInThisProject =
@@ -322,6 +382,7 @@ export default class SearchSource {
     paths: Array<string>,
     collectCoverage: boolean,
     otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     if (Array.isArray(paths) && paths.length > 0) {
       const resolvedPaths = paths.map(p =>
@@ -331,6 +392,7 @@ export default class SearchSource {
         new Set(resolvedPaths),
         collectCoverage,
         otherSearchSources,
+        globalGraph,
       );
     }
     return {tests: []};
@@ -352,6 +414,7 @@ export default class SearchSource {
     projectConfig: Config.ProjectConfig,
     changedFiles?: ChangedFiles,
     otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     if (globalConfig.onlyChanged) {
       if (!changedFiles) {
@@ -377,6 +440,7 @@ export default class SearchSource {
         paths,
         globalConfig.collectCoverage,
         otherSearchSources,
+        globalGraph,
       );
     } else {
       return this.findMatchingTests(
@@ -415,12 +479,14 @@ export default class SearchSource {
     changedFiles?: ChangedFiles,
     filter?: Filter,
     otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     const searchResult = await this._getTestPaths(
       globalConfig,
       projectConfig,
       changedFiles,
       otherSearchSources,
+      globalGraph,
     );
 
     const filterPath = globalConfig.filter;

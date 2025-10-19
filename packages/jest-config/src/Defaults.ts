@@ -96,6 +96,7 @@ const defaultOptions: Config.DefaultOptions = {
   watchPathIgnorePatterns: [],
   watchman: true,
   workerThreads: false,
+  unstable_useGlobalDependencyGraph: false,
 };
 
 export default defaultOptions;

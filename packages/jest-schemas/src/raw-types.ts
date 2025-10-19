@@ -350,5 +350,11 @@ export const InitialOptions = Type.Partial(
     ),
     workerIdleMemoryLimit: Type.Union([Type.Number(), Type.String()]),
     workerThreads: Type.Boolean(),
+    unstable_useGlobalDependencyGraph: Type.Boolean({
+      description:
+        'EXPERIMENTAL: Use global dependency graph for findRelatedTests. ' +
+        'This feature is experimental and may change or be removed in future versions. ' +
+        'Provides significant performance improvements for multi-project workspaces.',
+    }),
   }),
 );

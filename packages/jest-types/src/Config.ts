@@ -212,6 +212,7 @@ export type DefaultOptions = {
   watchPathIgnorePatterns: Array<string>;
   watchman: boolean;
   workerThreads: boolean;
+  unstable_useGlobalDependencyGraph: boolean;
 };
 
 export type DisplayName = {
@@ -324,6 +325,7 @@ export type GlobalConfig = {
   workerIdleMemoryLimit?: number;
   // TODO: make non-optional in Jest 30
   workerThreads?: boolean;
+  unstable_useGlobalDependencyGraph: boolean;
 };
 
 export type ProjectConfig = {
