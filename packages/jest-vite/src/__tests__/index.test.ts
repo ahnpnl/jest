@@ -9,8 +9,10 @@ import * as path from 'path';
 import * as fs from 'graceful-fs';
 import type {Config} from '@jest/types';
 import {
+  type ViteServer,
   applyDefines,
   createGlobalVariables,
+  createViteResolver,
   getViteConfig,
   injectEnvVariables,
   isViteEnabled,
@@ -338,6 +340,293 @@ describe('@jest/vite', () => {
         defines: {},
         importMetaEnv: {},
       });
+    });
+  });
+
+  describe('createViteResolver', () => {
+    const mockDefaultResolver = jest.fn(
+      (request: string, _options: unknown) => request,
+    );
+
+    beforeEach(() => {
+      mockDefaultResolver.mockClear();
+    });
+
+    it('should return null when viteServer is null', () => {
+      const resolver = createViteResolver(null);
+      expect(resolver).toBeNull();
+    });
+
+    it('should resolve aliased paths using Vite config', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: {
+              '@': path.join(__dirname, 'src'),
+              '@components': path.join(__dirname, 'src/components'),
+            },
+            extensions: ['.ts', '.tsx', '.js'],
+          },
+        } as any,
+      };
+
+      const resolver = createViteResolver(mockViteServer);
+      expect(resolver).not.toBeNull();
+
+      // Create test files
+      const testFile = path.join(__dirname, 'src/utils.ts');
+      fs.mkdirSync(path.dirname(testFile), {recursive: true});
+      fs.writeFileSync(testFile, 'export const util = 1;');
+
+      try {
+        const result = resolver!('@/utils', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          rootDir: __dirname,
+        });
+
+        expect(result).toBe(testFile);
+        expect(mockDefaultResolver).not.toHaveBeenCalled();
+      } finally {
+        // Cleanup
+        fs.unlinkSync(testFile);
+        fs.rmdirSync(path.dirname(testFile));
+      }
+    });
+
+    it('should try extensions when file has no extension', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: {
+              '@': path.join(__dirname, 'src'),
+            },
+            extensions: ['.ts', '.js'],
+          },
+        } as any,
+      };
+
+      const resolver = createViteResolver(mockViteServer);
+
+      const testFile = path.join(__dirname, 'src/component.tsx');
+      fs.mkdirSync(path.dirname(testFile), {recursive: true});
+      fs.writeFileSync(testFile, 'export const Component = () => null;');
+
+      try {
+        // Request without extension
+        const result = resolver!('@/component', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          extensions: ['.tsx', '.ts', '.js'],
+          rootDir: __dirname,
+        });
+
+        expect(result).toBe(testFile);
+      } finally {
+        fs.unlinkSync(testFile);
+        fs.rmdirSync(path.dirname(testFile));
+      }
+    });
+
+    it('should resolve index files in directories', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: {
+              '@components': path.join(__dirname, 'src/components'),
+            },
+            extensions: ['.ts', '.js'],
+          },
+        } as any,
+      };
+
+      const resolver = createViteResolver(mockViteServer);
+
+      const indexFile = path.join(__dirname, 'src/components/index.ts');
+      fs.mkdirSync(path.dirname(indexFile), {recursive: true});
+      fs.writeFileSync(indexFile, 'export * from "./Button";');
+
+      try {
+        const result = resolver!('@components', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          extensions: ['.ts', '.js'],
+          rootDir: __dirname,
+        });
+
+        expect(result).toBe(indexFile);
+      } finally {
+        fs.unlinkSync(indexFile);
+        fs.rmdirSync(path.dirname(indexFile));
+      }
+    });
+
+    it('should merge Vite aliases with Jest moduleNameMapper', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: {
+              '@': path.join(__dirname, 'src'),
+            },
+            extensions: ['.ts'],
+          },
+        } as any,
+      };
+
+      const moduleNameMapper = [
+        {
+          moduleName: path.join(__dirname, 'components/$1'),
+          regex: /^~components\/(.*)/,
+        },
+      ];
+
+      const resolver = createViteResolver(mockViteServer, moduleNameMapper);
+
+      const viteFile = path.join(__dirname, 'src/util.ts');
+      const jestFile = path.join(__dirname, 'components/Button.ts');
+
+      fs.mkdirSync(path.dirname(viteFile), {recursive: true});
+      fs.mkdirSync(path.dirname(jestFile), {recursive: true});
+      fs.writeFileSync(viteFile, '');
+      fs.writeFileSync(jestFile, '');
+
+      try {
+        // Vite alias should work
+        const viteResult = resolver!('@/util', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          extensions: ['.ts'],
+          rootDir: __dirname,
+        });
+        expect(viteResult).toBe(viteFile);
+
+        // Jest mapper should work for patterns not in Vite
+        const jestResult = resolver!('~components/Button', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          extensions: ['.ts'],
+          rootDir: __dirname,
+        });
+        expect(jestResult).toBe(jestFile);
+      } finally {
+        fs.unlinkSync(viteFile);
+        fs.unlinkSync(jestFile);
+        fs.rmdirSync(path.dirname(viteFile));
+        fs.rmdirSync(path.dirname(jestFile));
+      }
+    });
+
+    it('should give Vite aliases precedence over Jest moduleNameMapper', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: {
+              '@': path.join(__dirname, 'vite-src'),
+            },
+            extensions: ['.ts'],
+          },
+        } as any,
+      };
+
+      const moduleNameMapper = [
+        {
+          moduleName: path.join(__dirname, 'jest-src'),
+          regex: /^@\/(.*)/,
+        },
+      ];
+
+      const resolver = createViteResolver(mockViteServer, moduleNameMapper);
+
+      const viteFile = path.join(__dirname, 'vite-src/util.ts');
+      fs.mkdirSync(path.dirname(viteFile), {recursive: true});
+      fs.writeFileSync(viteFile, '');
+
+      try {
+        const result = resolver!('@/util', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          extensions: ['.ts'],
+          rootDir: __dirname,
+        });
+
+        // Should resolve to Vite alias, not Jest mapper
+        expect(result).toBe(viteFile);
+      } finally {
+        fs.unlinkSync(viteFile);
+        fs.rmdirSync(path.dirname(viteFile));
+      }
+    });
+
+    it('should fall back to default resolver for non-aliased imports', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: {
+              '@': path.join(__dirname, 'src'),
+            },
+            extensions: ['.ts'],
+          },
+        } as any,
+      };
+
+      const resolver = createViteResolver(mockViteServer);
+
+      mockDefaultResolver.mockReturnValue('/node_modules/lodash/index.js');
+
+      const result = resolver!('lodash', {
+        basedir: __dirname,
+        defaultResolver: mockDefaultResolver,
+        rootDir: __dirname,
+      });
+
+      expect(result).toBe('/node_modules/lodash/index.js');
+      expect(mockDefaultResolver).toHaveBeenCalledWith(
+        'lodash',
+        expect.any(Object),
+      );
+    });
+
+    it('should handle array-type alias values', () => {
+      const mockViteServer: ViteServer = {
+        close: jest.fn(),
+        config: {
+          resolve: {
+            alias: [
+              {
+                find: '@lib',
+                replacement: path.join(__dirname, 'library'),
+              },
+            ],
+            extensions: ['.ts'],
+          },
+        } as any,
+      };
+
+      const resolver = createViteResolver(mockViteServer);
+
+      const testFile = path.join(__dirname, 'library/helper.ts');
+      fs.mkdirSync(path.dirname(testFile), {recursive: true});
+      fs.writeFileSync(testFile, '');
+
+      try {
+        const result = resolver!('@lib/helper', {
+          basedir: __dirname,
+          defaultResolver: mockDefaultResolver,
+          extensions: ['.ts'],
+          rootDir: __dirname,
+        });
+
+        expect(result).toBe(testFile);
+      } finally {
+        fs.unlinkSync(testFile);
+        fs.rmdirSync(path.dirname(testFile));
+      }
     });
   });
 });

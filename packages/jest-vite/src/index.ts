@@ -318,22 +318,202 @@ export function createGlobalVariables(
 }
 
 /**
- * Creates a Vite-based resolver function that can be used by Jest.
- * This integrates Vite's module resolution with Jest's resolver.
- *
- * Note: This is a placeholder implementation for Phase 1.
- * Full integration with Jest's resolver will be in Phase 2.
- *
- * @param _viteServer - Vite server instance with resolved config (unused in Phase 1)
- * @returns Resolver function that returns null (placeholder)
+ * Resolver function type compatible with Jest's resolver interface
  */
-export async function createViteResolver(
-  _viteServer: ViteServer,
-): Promise<(id: string, basedir: string) => Promise<string | null>> {
-  return async (_id: string, _basedir: string): Promise<string | null> => {
-    // Placeholder for Phase 1
-    // Phase 2 will integrate Vite's actual module resolution
-    // using viteServer.config and Vite's resolver plugins
+export type ViteResolverFunction = (
+  request: string,
+  options: {
+    basedir: string;
+    conditions?: Array<string>;
+    defaultResolver: (request: string, options: unknown) => string;
+    extensions?: Array<string>;
+    moduleDirectory?: Array<string>;
+    paths?: Array<string>;
+    rootDir?: string;
+  },
+) => string;
+
+/**
+ * Creates a Vite-based resolver that integrates with Jest's resolver system.
+ * This implements Vite's resolution flow with alias support:
+ * 1. Pre-bundling check (skipped for Phase 1 - would use esbuild)
+ * 2. Alias resolution (using Vite's resolve.alias)
+ * 3. Extension resolution (using Vite's resolve.extensions)
+ * 4. Index file resolution
+ * 5. Package resolution (delegated to default resolver)
+ *
+ * The resolver also merges Vite's resolve.alias with Jest's moduleNameMapper:
+ * - Vite aliases take precedence when both define the same key
+ * - Jest's moduleNameMapper is used as fallback for unmapped patterns
+ *
+ * @param viteServer - The Vite server instance with configuration
+ * @param moduleNameMapper - Jest's existing moduleNameMapper config (merged with Vite aliases)
+ * @returns A resolver function compatible with Jest's resolver interface, or null if no server
+ */
+export function createViteResolver(
+  viteServer: ViteServer | null,
+  moduleNameMapper?: Array<{
+    moduleName: string | Array<string>;
+    regex: RegExp;
+  }> | null,
+): ViteResolverFunction | null {
+  if (!viteServer) {
     return null;
+  }
+
+  const viteConfig = viteServer.config;
+  const {alias, extensions} = viteConfig.resolve;
+
+  // Merge Vite aliases with Jest's moduleNameMapper
+  const mergedAliases = new Map<string, string | Array<string>>();
+
+  // Add Vite aliases (higher priority)
+  if (alias) {
+    if (Array.isArray(alias)) {
+      for (const aliasEntry of alias) {
+        if ('find' in aliasEntry && 'replacement' in aliasEntry) {
+          mergedAliases.set(
+            typeof aliasEntry.find === 'string'
+              ? aliasEntry.find
+              : String(aliasEntry.find),
+            aliasEntry.replacement,
+          );
+        }
+      }
+    } else {
+      for (const [find, replacement] of Object.entries(alias)) {
+        mergedAliases.set(find, replacement);
+      }
+    }
+  }
+
+  // Store Jest moduleNameMapper separately as it uses regex patterns
+  const jestMappers = moduleNameMapper || [];
+
+  // Helper function to try resolving a path with extensions and index files
+  const tryResolve = (
+    resolvedPath: string,
+    extensionsToTry: Array<string>,
+  ): string | null => {
+    // First try exact match
+    try {
+      if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isFile()) {
+        return resolvedPath;
+      }
+    } catch {
+      // Ignore
+    }
+
+    // Try with extensions
+    for (const ext of extensionsToTry) {
+      const withExt = resolvedPath + ext;
+      try {
+        if (fs.existsSync(withExt) && fs.statSync(withExt).isFile()) {
+          return withExt;
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    // Check if it's a directory and try index files
+    try {
+      if (
+        fs.existsSync(resolvedPath) &&
+        fs.statSync(resolvedPath).isDirectory()
+      ) {
+        for (const ext of extensionsToTry) {
+          const indexPath = path.join(resolvedPath, `index${ext}`);
+          if (fs.existsSync(indexPath)) {
+            return indexPath;
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    return null;
+  };
+
+  // Return the resolver function
+  return (request, options) => {
+    const {
+      basedir,
+      defaultResolver,
+      extensions: jestExtensions,
+      rootDir,
+    } = options;
+    const extensionsToTry = jestExtensions ||
+      extensions || ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json'];
+
+    // Step 1: Pre-bundling check (skipped for Phase 1)
+    // This would check if the module needs to be pre-bundled with esbuild
+
+    // Step 2: Alias resolution (Vite aliases - higher priority)
+    // Check if the request matches any Vite alias
+    for (const [find, replacement] of mergedAliases) {
+      if (request.startsWith(find)) {
+        // Replace alias with its target
+        const replacementPath = Array.isArray(replacement)
+          ? replacement[0]
+          : replacement;
+        const aliasedRequest = request.replace(
+          new RegExp(`^${find.replaceAll(/[$()*+.?[\\\]^{|}]/g, '\\$&')}`),
+          replacementPath,
+        );
+
+        // If the aliased path is absolute, resolve it from rootDir
+        const resolvedRequest = path.isAbsolute(aliasedRequest)
+          ? aliasedRequest
+          : path.resolve(rootDir || basedir, aliasedRequest);
+
+        // Step 3: Extension resolution & Step 4: Index file resolution
+        const resolved = tryResolve(resolvedRequest, extensionsToTry);
+        if (resolved) {
+          return resolved;
+        }
+      }
+    }
+
+    // Step 2b: Jest moduleNameMapper patterns (lower priority)
+    // Check if the request matches any Jest mapper pattern
+    for (const mapper of jestMappers) {
+      if (mapper.regex.test(request)) {
+        const matches = request.match(mapper.regex);
+        if (matches) {
+          // Get the module name(s) to try
+          const moduleNames = Array.isArray(mapper.moduleName)
+            ? mapper.moduleName
+            : [mapper.moduleName];
+
+          for (const moduleName of moduleNames) {
+            // Replace $1, $2, etc. with capture groups
+            let replacedName = moduleName;
+            for (let i = 1; i < matches.length; i++) {
+              replacedName = replacedName.replaceAll(`$${i}`, matches[i]);
+            }
+
+            // Resolve the path
+            const resolvedRequest = path.isAbsolute(replacedName)
+              ? replacedName
+              : path.resolve(rootDir || basedir, replacedName);
+
+            // Try to resolve with extensions
+            const resolved = tryResolve(resolvedRequest, extensionsToTry);
+            if (resolved) {
+              return resolved;
+            }
+          }
+        }
+      }
+    }
+
+    // Step 5: Package resolution (and fallback for all other cases)
+    // Delegate to Jest's default resolver which handles:
+    // - node_modules lookup
+    // - package.json exports/main fields
+    // - node resolution algorithm
+    return defaultResolver(request, options);
   };
 }
