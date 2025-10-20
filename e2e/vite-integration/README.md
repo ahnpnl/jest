@@ -74,10 +74,13 @@ The `mode` option controls which mode Vite runs in. In test mode:
 The `define` option replaces global constants at build time:
 
 ```typescript
-define: {
-  __DEV__: false,
-  __TEST__: true,
-}
+// define configuration
+const config = {
+  define: {
+    __DEV__: false,
+    __TEST__: true,
+  },
+};
 ```
 
 **Demonstration**: See `applyDefines()` function in `@jest/vite`:
@@ -96,12 +99,15 @@ const result = applyDefines(code, {__DEV__: false});
 The `resolve.alias` option creates import path shortcuts:
 
 ```typescript
-resolve: {
-  alias: {
-    '@': '/src',
-    '@components': '/src/components',
-  }
-}
+// resolve configuration
+const config = {
+  resolve: {
+    alias: {
+      '@': '/src',
+      '@components': '/src/components',
+    },
+  },
+};
 ```
 
 **Demonstration**: See `resolveAlias()` function in `@jest/vite`:

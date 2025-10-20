@@ -46,8 +46,8 @@ export function exampleAlias() {
 // Vite server runs in test mode, which affects how it processes files
 export function exampleMode() {
   return {
-    mode: 'test',
     description: 'Vite server is running in test mode',
+    mode: 'test',
   };
 }
 

@@ -5,10 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as fs from 'fs';
 import * as path from 'path';
 import {config as dotenvConfig} from 'dotenv';
 import * as dotenvExpand from 'dotenv-expand';
+import * as fs from 'graceful-fs';
 import type {InlineConfig, ResolvedConfig, ViteDevServer} from 'vite';
 import type {Config} from '@jest/types';
 
@@ -201,12 +201,7 @@ export type EnvVariables = Record<string, string>;
  * @returns Object containing loaded environment variables
  */
 export function loadEnvFiles(rootDir: string, mode: string): EnvVariables {
-  const envFiles = [
-    `.env`,
-    `.env.local`,
-    `.env.${mode}`,
-    `.env.${mode}.local`,
-  ];
+  const envFiles = ['.env', '.env.local', `.env.${mode}`, `.env.${mode}.local`];
 
   let envVars: EnvVariables = {};
 
@@ -216,7 +211,7 @@ export function loadEnvFiles(rootDir: string, mode: string): EnvVariables {
     if (fs.existsSync(filePath)) {
       try {
         // Use override: true to allow later files to override earlier ones
-        const result = dotenvConfig({path: filePath, override: true});
+        const result = dotenvConfig({override: true, path: filePath});
         if (result.parsed) {
           // Expand variables (e.g., ${VAR_NAME})
           const expanded = dotenvExpand.expand({
@@ -257,8 +252,8 @@ export function injectEnvVariables(
   // Only expose VITE_* prefixed variables to import.meta.env
   // Plus standard Vite env variables
   const importMetaEnv: EnvVariables = {
-    MODE: mode,
     DEV: (mode !== 'production').toString(),
+    MODE: mode,
     PROD: (mode === 'production').toString(),
     SSR: 'false', // Jest tests are not SSR
   };

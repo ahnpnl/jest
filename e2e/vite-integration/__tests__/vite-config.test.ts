@@ -32,9 +32,7 @@ describe('Vite Configuration Usage Examples', () => {
     it('should resolve alias paths using resolveAlias', () => {
       const aliases = {'@': '/src'};
 
-      expect(resolveAlias('@/utils/helper', aliases)).toBe(
-        '/src/utils/helper',
-      );
+      expect(resolveAlias('@/utils/helper', aliases)).toBe('/src/utils/helper');
       expect(resolveAlias('@/components/Button', aliases)).toBe(
         '/src/components/Button',
       );

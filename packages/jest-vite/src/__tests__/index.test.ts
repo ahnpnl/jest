@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import * as fs from 'fs';
 import * as path from 'path';
+import * as fs from 'graceful-fs';
 import type {Config} from '@jest/types';
 import {
   applyDefines,
@@ -192,9 +192,10 @@ describe('@jest/vite', () => {
     afterEach(() => {
       // Clean up temp directory
       if (fs.existsSync(tmpDir)) {
-        fs.readdirSync(tmpDir).forEach(file => {
+        const files = fs.readdirSync(tmpDir);
+        for (const file of files) {
           fs.unlinkSync(path.join(tmpDir, file));
-        });
+        }
         fs.rmdirSync(tmpDir);
       }
     });
