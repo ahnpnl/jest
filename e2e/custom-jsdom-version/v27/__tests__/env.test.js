@@ -6,6 +6,10 @@
  */
 'use strict';
 
-console.log(globalThis.window ? 'WINDOW' : 'NO WINDOW');
+const DummyLocation = require('../dummy-location');
 
-test('stub', () => expect(1).toBe(1));
+test('should work', () => {
+  expect(globalThis.document.location).toBeInstanceOf(DummyLocation);
+  globalThis.document.location.search = 'foo=bar';
+  expect(globalThis.document.location.search).toBe('foo=bar');
+});

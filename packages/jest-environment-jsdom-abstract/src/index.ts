@@ -26,20 +26,85 @@ type Win = Window &
     };
   };
 
+function catchWindowErrors(win: Win) {
+  let userErrorListenerCount = 0;
+  function throwUnhandlerError(e: ErrorEvent) {
+    if (userErrorListenerCount === 0 && e.error != null) {
+      globalThis.process.emit('uncaughtException', e.error);
+    }
+  }
+  const addEventListener = win.addEventListener.bind(win);
+  const removeEventListener = win.removeEventListener.bind(win);
+  win.addEventListener('error', throwUnhandlerError);
+  win.addEventListener = function (...args: [any, any, any]) {
+    if (args[0] === 'error') {
+      userErrorListenerCount++;
+    }
+    return addEventListener.apply(this, args);
+  };
+  win.removeEventListener = function (...args: [any, any, any]) {
+    if (args[0] === 'error' && userErrorListenerCount) {
+      userErrorListenerCount--;
+    }
+    return removeEventListener.apply(this, args);
+  };
+
+  return function clearErrorHandlers() {
+    win.removeEventListener('error', throwUnhandlerError);
+  };
+}
+
+function patchVirtualConsole(
+  VirtualConsoleModule: typeof jsdom.VirtualConsole,
+  context: EnvironmentContext,
+): jsdom.VirtualConsole {
+  const patchedVirtualConsole = new VirtualConsoleModule();
+
+  if (
+    'forwardTo' in patchedVirtualConsole &&
+    typeof patchedVirtualConsole.forwardTo === 'function'
+  ) {
+    // JSDOM 27+ uses `forwardTo`
+    patchedVirtualConsole.forwardTo(context.console);
+  } else if (
+    'sendTo' in patchedVirtualConsole &&
+    typeof patchedVirtualConsole.sendTo === 'function'
+  ) {
+    // JSDOM 26 uses `sendTo`
+    patchedVirtualConsole.sendTo(context.console, {omitJSDOMErrors: true});
+  } else {
+    // Fallback for unexpected API changes
+    throw new TypeError(
+      'Unable to forward JSDOM console output - neither sendTo nor forwardTo methods are available',
+    );
+  }
+
+  patchedVirtualConsole.on('jsdomError', error => {
+    context.console.error(error);
+  });
+
+  return patchedVirtualConsole;
+}
+
 function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
 
+type JestJSDOMEnvironmentOptions = {
+  html?: string;
+  userAgent?: string;
+} & jsdom.BaseOptions;
+
 export default abstract class BaseJSDOMEnvironment
   implements JestEnvironment<number>
 {
-  dom: jsdom.JSDOM | null;
+  global = globalThis as unknown as Win;
   fakeTimers: LegacyFakeTimers<number> | null;
   fakeTimersModern: ModernFakeTimers | null;
-  global: Win;
-  private errorEventListener: ((event: Event & {error: Error}) => void) | null;
   moduleMocker: ModuleMocker | null;
   customExportConditions = ['browser'];
+  private _errorEventListener: (() => void) | null;
+  private _dom: jsdom.JSDOM | null;
   private readonly _configuredExportConditions?: Array<string>;
 
   protected constructor(
@@ -48,98 +113,39 @@ export default abstract class BaseJSDOMEnvironment
     jsdomModule: typeof jsdom,
   ) {
     const {projectConfig} = config;
-
     const {JSDOM, ResourceLoader, VirtualConsole} = jsdomModule;
+    const {html, userAgent, ...restOptions} =
+      projectConfig.testEnvironmentOptions satisfies JestJSDOMEnvironmentOptions;
 
-    const virtualConsole = new VirtualConsole();
+    const patchedVirtualConsole = patchVirtualConsole(VirtualConsole, context);
 
-    if (
-      'forwardTo' in virtualConsole &&
-      typeof virtualConsole.forwardTo === 'function'
-    ) {
-      // JSDOM 27+ uses `forwardTo`
-      virtualConsole.forwardTo(context.console);
-    } else if (
-      'sendTo' in virtualConsole &&
-      typeof virtualConsole.sendTo === 'function'
-    ) {
-      // JSDOM 26 uses `sendTo`
-      virtualConsole.sendTo(context.console, {omitJSDOMErrors: true});
-    } else {
-      // Fallback for unexpected API changes
-      throw new TypeError(
-        'Unable to forward JSDOM console output - neither sendTo nor forwardTo methods are available',
-      );
-    }
-
-    virtualConsole.on('jsdomError', error => {
-      context.console.error(error);
+    this._dom = new JSDOM(typeof html === 'string' ? html : '<!DOCTYPE html>', {
+      pretendToBeVisual: true,
+      resources:
+        typeof userAgent === 'string'
+          ? new ResourceLoader({
+              userAgent,
+            })
+          : undefined,
+      runScripts: 'dangerously',
+      url: 'http://localhost/',
+      virtualConsole: patchedVirtualConsole,
+      ...restOptions,
     });
 
-    this.dom = new JSDOM(
-      typeof projectConfig.testEnvironmentOptions.html === 'string'
-        ? projectConfig.testEnvironmentOptions.html
-        : '<!DOCTYPE html>',
-      {
-        pretendToBeVisual: true,
-        resources:
-          typeof projectConfig.testEnvironmentOptions.userAgent === 'string'
-            ? new ResourceLoader({
-                userAgent: projectConfig.testEnvironmentOptions.userAgent,
-              })
-            : undefined,
-        runScripts: 'dangerously',
-        url: 'http://localhost/',
-        virtualConsole,
-        ...projectConfig.testEnvironmentOptions,
-      },
-    );
-    const global = (this.global = this.dom.window as unknown as Win);
-
-    if (global == null) {
+    if (this._dom.window == null) {
       throw new Error('JSDOM did not return a Window object');
     }
 
-    // TODO: remove at some point - for "universal" code (code should use `globalThis`)
-    global.global = global;
-
     // Node's error-message stack size is limited at 10, but it's pretty useful
     // to see more than that when a test fails.
-    this.global.Error.stackTraceLimit = 100;
-    installCommonGlobals(global, projectConfig.globals);
+    globalThis.Error.stackTraceLimit = 100;
+    installCommonGlobals(globalThis, projectConfig.globals);
 
     // TODO: remove this ASAP, but it currently causes tests to run really slow
-    global.Buffer = Buffer;
+    globalThis.Buffer = Buffer;
 
-    // Report uncaught errors.
-    this.errorEventListener = event => {
-      if (userErrorListenerCount === 0 && event.error != null) {
-        process.emit('uncaughtException', event.error);
-      }
-    };
-    global.addEventListener('error', this.errorEventListener);
-
-    // However, don't report them as uncaught if the user listens to 'error' event.
-    // In that case, we assume the might have custom error handling logic.
-    const originalAddListener = global.addEventListener.bind(global);
-    const originalRemoveListener = global.removeEventListener.bind(global);
-    let userErrorListenerCount = 0;
-    global.addEventListener = function (
-      ...args: Parameters<typeof originalAddListener>
-    ) {
-      if (args[0] === 'error') {
-        userErrorListenerCount++;
-      }
-      return originalAddListener.apply(this, args);
-    };
-    global.removeEventListener = function (
-      ...args: Parameters<typeof originalRemoveListener>
-    ) {
-      if (args[0] === 'error') {
-        userErrorListenerCount--;
-      }
-      return originalRemoveListener.apply(this, args);
-    };
+    this._errorEventListener = catchWindowErrors(globalThis as unknown as Win);
 
     if ('customExportConditions' in projectConfig.testEnvironmentOptions) {
       const {customExportConditions} = projectConfig.testEnvironmentOptions;
@@ -155,11 +161,11 @@ export default abstract class BaseJSDOMEnvironment
       }
     }
 
-    this.moduleMocker = new ModuleMocker(global);
+    this.moduleMocker = new ModuleMocker(globalThis);
 
     this.fakeTimers = new LegacyFakeTimers({
       config: projectConfig,
-      global: global as unknown as typeof globalThis,
+      global: globalThis as unknown as typeof globalThis,
       moduleMocker: this.moduleMocker,
       timerConfig: {
         idToRef: (id: number) => id,
@@ -169,7 +175,7 @@ export default abstract class BaseJSDOMEnvironment
 
     this.fakeTimersModern = new ModernFakeTimers({
       config: projectConfig,
-      global: global as unknown as typeof globalThis,
+      global: globalThis as unknown as typeof globalThis,
     });
   }
 
@@ -177,22 +183,15 @@ export default abstract class BaseJSDOMEnvironment
   async setup(): Promise<void> {}
 
   async teardown(): Promise<void> {
-    if (this.fakeTimers) {
-      this.fakeTimers.dispose();
+    this.fakeTimers?.dispose();
+    this.fakeTimersModern?.dispose();
+    if (this._errorEventListener) {
+      this._errorEventListener();
+      globalThis.removeEventListener('error', this._errorEventListener);
+      this._errorEventListener = null;
     }
-    if (this.fakeTimersModern) {
-      this.fakeTimersModern.dispose();
-    }
-    if (this.global != null) {
-      if (this.errorEventListener) {
-        this.global.removeEventListener('error', this.errorEventListener);
-      }
-      this.global.close();
-    }
-    this.errorEventListener = null;
-    // @ts-expect-error: this.global not allowed to be `null`
-    this.global = null;
-    this.dom = null;
+    globalThis.close();
+    this._dom = null;
     this.fakeTimers = null;
     this.fakeTimersModern = null;
   }
@@ -202,9 +201,10 @@ export default abstract class BaseJSDOMEnvironment
   }
 
   getVmContext(): Context | null {
-    if (this.dom) {
-      return this.dom.getInternalVMContext();
+    if (this._dom) {
+      return this._dom.getInternalVMContext();
     }
+
     return null;
   }
 }
