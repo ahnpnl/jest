@@ -25,7 +25,7 @@ Jest is a JavaScript testing framework maintained by Meta Platforms. It's a larg
 
 ```json
 {
-  "bracketSpacing": false,  
+  "bracketSpacing": false,
   "singleQuote": true,
   "trailingComma": "all",
   "arrowParens": "avoid",
