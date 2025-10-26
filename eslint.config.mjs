@@ -807,6 +807,7 @@ const config = defineConfig(
       // JS Syntax error
       '{docs,website/versioned_docs/version-*}/ECMAScriptModules.md',
       '{docs,website/versioned_docs/version-*}/JestObjectAPI.md',
+      '.github/copilot-instructions.md',
 
       // Bug? Uses TS syntax
       'e2e/babel-plugin-jest-hoist/__tests__/integration.test.js',

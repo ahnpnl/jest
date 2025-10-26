@@ -23,14 +23,13 @@ Jest is a JavaScript testing framework maintained by Meta Platforms. It's a larg
 
 ### Formatting
 
-```typescript
-// Prettier configuration
+```json
 {
-  bracketSpacing: false,      // {foo: bar} not { foo: bar }
-  singleQuote: true,          // 'string' not "string"
-  trailingComma: 'all',       // Always add trailing commas
-  arrowParens: 'avoid',       // x => x not (x) => x
-  proseWrap: 'never',
+  "bracketSpacing": false,  
+  "singleQuote": true,
+  "trailingComma": "all",
+  "arrowParens": "avoid",
+  "proseWrap": "never"
 }
 ```
 
@@ -74,7 +73,9 @@ Organize imports in this order:
 // ❌ NEVER do this
 import fs from 'fs';
 const x = global.something;
+```
 
+```typescript
 // ✅ ALWAYS do this
 import fs from 'graceful-fs';
 const x = globalThis.something;
@@ -595,11 +596,15 @@ function safeJoin(base: string, userPath: string): string {
 ```typescript
 // ❌ Don't use var
 var x = 1;
+```
 
+```typescript
 // ✅ Use const/let
 const x = 1;
 let y = 2;
+```
 
+```typescript
 // ❌ Don't use == or !=
 if (x == '1') {
 }
