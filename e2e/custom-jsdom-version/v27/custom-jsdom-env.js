@@ -5,11 +5,15 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import JSDOM from 'jsdom';
+import jsdom from 'jsdom';
 import BaseEnv from '@jest/environment-jsdom-abstract';
+import {JSDOMWithDummyLocation} from './dummy-jsdom.js';
 
 export default class JestJSDOMEnvironment extends BaseEnv {
   constructor(config, context) {
-    super(config, context, JSDOM);
+    super(config, context, {
+      ...jsdom,
+      JSDOM: JSDOMWithDummyLocation,
+    });
   }
 }
