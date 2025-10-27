@@ -10,6 +10,7 @@ import type {ReportOptions} from 'istanbul-reports';
 import type {Arguments} from 'yargs';
 import type {TestPathPatterns} from '@jest/pattern';
 import type {InitialOptions, SnapshotFormat} from '@jest/schemas';
+import type * as TransformTypes from './Transform';
 
 export type {InitialOptions} from '@jest/schemas';
 
@@ -254,6 +255,107 @@ type ShardConfig = {
   shardCount: number;
 };
 
+export type JestPluginContext = {
+  config: ProjectConfig;
+  globalConfig: GlobalConfig;
+};
+
+export interface JestPlugin {
+  name: string;
+  // Config lifecycle hooks
+  config?: (
+    config: InitialOptions,
+    context: {configPath: string | null},
+  ) => InitialOptions | Promise<InitialOptions> | void | Promise<void>;
+  configResolved?: (
+    config: ProjectConfig,
+    context: JestPluginContext,
+  ) => void | Promise<void>;
+  configureJest?: (context: JestPluginContext) => void | Promise<void>;
+  // Transform hook
+  transform?: (
+    code: string,
+    id: string,
+  ) =>
+    | TransformTypes.TransformResult
+    | string
+    | null
+    | undefined
+    | Promise<TransformTypes.TransformResult | string | null | undefined>;
+  // Watch mode hooks (unified from WatchPlugin interface)
+  // These hooks are available for plugins that need watch mode functionality
+  isInternal?: boolean;
+  registerWatchEventsHandler?: (hooks: JestPluginHookSubscriber) => void;
+  defineWatchMenu?: (globalConfig: GlobalConfig) => JestPluginUsageData | null;
+  onKey?: (value: string) => void;
+  onWatchMenuInteracted?: (
+    globalConfig: GlobalConfig,
+    updateConfigAndRun: JestPluginUpdateConfigCallback,
+  ) => Promise<void | boolean>;
+}
+
+// Watch plugin type re-exports for compatibility and unified API
+export type JestPluginHookSubscriber = {
+  onFileChange: (fn: JestPluginFileChange) => void;
+  onTestRunComplete: (fn: JestPluginTestRunComplete) => void;
+  shouldRunTestSuite: (fn: JestPluginShouldRunTestSuite) => void;
+};
+
+export type JestPluginHookExposedFS = {
+  projects: Array<{
+    config: ProjectConfig;
+    testPaths: Array<string>;
+  }>;
+};
+
+export type JestPluginFileChange = (fs: JestPluginHookExposedFS) => void;
+export type JestPluginShouldRunTestSuite = (testSuiteInfo: {
+  config: ProjectConfig;
+  duration?: number;
+  testPath: string;
+}) => Promise<boolean>;
+export type JestPluginTestRunComplete = (
+  results: import('@jest/test-result').AggregatedResult,
+) => void;
+
+export type JestPluginUsageData = {
+  key: string;
+  prompt: string;
+};
+
+export type JestPluginAllowedConfigOptions = Partial<
+  Pick<
+    GlobalConfig,
+    | 'bail'
+    | 'changedSince'
+    | 'collectCoverage'
+    | 'collectCoverageFrom'
+    | 'coverageDirectory'
+    | 'coverageReporters'
+    | 'findRelatedTests'
+    | 'nonFlagArgs'
+    | 'notify'
+    | 'notifyMode'
+    | 'onlyFailures'
+    | 'reporters'
+    | 'testNamePattern'
+    | 'updateSnapshot'
+    | 'verbose'
+  > & {
+    mode: 'watch' | 'watchAll';
+    testPathPatterns: Array<string>;
+  }
+>;
+
+export type JestPluginUpdateConfigCallback = (
+  config?: JestPluginAllowedConfigOptions,
+) => void;
+
+export type JestPluginConfig =
+  | JestPlugin
+  | (() => JestPlugin)
+  | (() => Promise<JestPlugin>);
+
 export type GlobalConfig = {
   bail: number;
   changedSince?: string;
@@ -358,6 +460,7 @@ export type ProjectConfig = {
   modulePaths?: Array<string>;
   openHandlesTimeout: number;
   preset?: string;
+  plugins?: Array<JestPlugin>;
   prettierPath: string;
   reporters: Array<string | ReporterConfig>;
   resetMocks: boolean;
