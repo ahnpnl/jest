@@ -742,6 +742,85 @@ export default defineConfig({
 
 :::
 
+### `future` \[object]
+
+Default: `{}`
+
+Enables experimental features that may become the default behavior in future Jest releases. This allows users to opt-in to upcoming changes gradually and provide feedback.
+
+#### `future.experimental_vite` \[boolean | object]
+
+Default: `undefined`
+
+Enables experimental Vite integration for Jest. This feature allows Jest to leverage Vite's fast transformation and module resolution capabilities during test execution.
+
+**Phase 1 Implementation**: Currently supports `mode`, `define`, and `resolve` configuration options.
+
+When set to `true`, Jest will use Vite with default settings. You can also pass a configuration object to customize Vite's behavior:
+
+```js tab title="jest.config.js"
+const {defineConfig, withViteConfig} = require('jest-config');
+
+module.exports = defineConfig({
+  future: {
+    experimental_vite: withViteConfig({
+      mode: 'test',
+      resolve: {
+        alias: {
+          '@': '/src',
+        },
+      },
+      define: {
+        __DEV__: true,
+      },
+    }),
+  },
+});
+```
+
+```ts tab title="jest.config.ts"
+import {defineConfig, withViteConfig} from 'jest-config';
+
+export default defineConfig({
+  future: {
+    experimental_vite: withViteConfig({
+      mode: 'test',
+      resolve: {
+        alias: {
+          '@': '/src',
+        },
+      },
+      define: {
+        __DEV__: true,
+      },
+    }),
+  },
+});
+```
+
+Available Vite configuration options (Phase 1):
+
+- `mode` \[string]: Mode for Vite (default: "test").
+- `resolve.alias` \[object]: Define custom aliases for imports.
+- `resolve.extensions` \[array&lt;string&gt;]: List of file extensions to try when resolving imports.
+- `define` \[object]: Define global constant replacements.
+
+:::caution
+
+This is an experimental feature. To use Vite integration, you must install `vite` and `tsx` as dev dependencies:
+
+```bash
+npm install --save-dev vite tsx
+```
+
+or
+
+```bash
+yarn add --dev vite tsx
+```
+
+:::
+
 ### `forceCoverageMatch` \[array&lt;string&gt;]
 
 Default: `['']`

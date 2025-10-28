@@ -225,6 +225,46 @@ const HasteConfig = Type.Partial(
   }),
 );
 
+// Vite configuration for experimental Vite integration (Phase 1)
+const ViteConfig = Type.Partial(
+  Type.Object({
+    mode: Type.String({
+      description: 'Mode for Vite (default: "test").',
+      default: 'test',
+    }),
+    resolve: Type.Partial(
+      Type.Object({
+        alias: Type.Record(
+          Type.String(),
+          Type.Union([Type.String(), Type.Array(Type.String())]),
+          {
+            description: 'Define custom aliases for imports.',
+          },
+        ),
+        extensions: Type.Array(Type.String(), {
+          description: 'List of file extensions to try when resolving imports.',
+        }),
+      }),
+      {
+        description: 'Module resolution options.',
+      },
+    ),
+    define: Type.Record(Type.String(), Type.Unknown(), {
+      description: 'Define global constant replacements.',
+    }),
+  }),
+);
+
+const FutureConfig = Type.Partial(
+  Type.Object({
+    experimental_vite: Type.Union([Type.Boolean(), ViteConfig], {
+      description:
+        'Enable experimental Vite integration. Can be set to true to use default Vite config, ' +
+        'or provide a ViteConfig object for custom configuration.',
+    }),
+  }),
+);
+
 export const InitialOptions = Type.Partial(
   Type.Object({
     automock: Type.Boolean(),
@@ -250,6 +290,7 @@ export const InitialOptions = Type.Partial(
     extensionsToTreatAsEsm: Type.Array(Type.String()),
     fakeTimers: FakeTimers,
     filter: Type.String(),
+    future: FutureConfig,
     findRelatedTests: Type.Boolean(),
     forceCoverageMatch: Type.Array(Type.String()),
     forceExit: Type.Boolean(),

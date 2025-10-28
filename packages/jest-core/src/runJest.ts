@@ -36,6 +36,7 @@ import getNoTestsFoundMessage from './getNoTestsFoundMessage';
 import serializeToJSON from './lib/serializeToJSON';
 import runGlobalHook from './runGlobalHook';
 import type {Filter, TestRunData} from './types';
+import {initializeViteIntegration} from './viteIntegration';
 
 const getTestPaths = async (
   globalConfig: Config.GlobalConfig,
@@ -166,6 +167,33 @@ export default async function runJest({
   );
   const sequencer = new Sequencer({contexts, globalConfig});
   let allTests: Array<Test> = [];
+
+  // Initialize single global Vite server if any context has Vite enabled
+  // This follows Vitest's approach of using one Vite server shared across all projects
+  performance.mark('jest/viteSetup:start');
+  let globalViteServer: Awaited<ReturnType<typeof initializeViteIntegration>> =
+    null;
+
+  // Check if any context has Vite enabled and use the first one's config
+  // In multi-project setups, all projects should ideally share the same Vite config
+  const {isViteEnabled: checkViteEnabled} = await import('@jest/vite');
+  const viteEnabledContext = contexts.find(context =>
+    checkViteEnabled(context.config),
+  );
+
+  if (viteEnabledContext) {
+    globalViteServer = await initializeViteIntegration(
+      viteEnabledContext.config,
+      viteEnabledContext.config.rootDir,
+    );
+
+    if (globalViteServer) {
+      outputStream.write(
+        chalk.cyan('\n[Vite] Initialized global Vite server for testing\n'),
+      );
+    }
+  }
+  performance.mark('jest/viteSetup:end');
 
   if (changedFilesPromise && globalConfig.watch) {
     const {repos} = await changedFilesPromise;
@@ -333,4 +361,12 @@ export default async function runJest({
     testResultsProcessor: globalConfig.testResultsProcessor,
   });
   performance.mark('jest/processResults:end');
+
+  // Clean up global Vite server
+  if (globalViteServer) {
+    performance.mark('jest/viteTeardown:start');
+    await globalViteServer.close();
+    outputStream.write(chalk.cyan('[Vite] Closed global Vite server\n'));
+    performance.mark('jest/viteTeardown:end');
+  }
 }

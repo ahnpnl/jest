@@ -129,6 +129,47 @@ export type HasteConfig = {
   retainAllFiles?: boolean;
 };
 
+/**
+ * Vite configuration options for experimental Vite integration (Phase 1)
+ *
+ * Note: This uses a subset of Vite's configuration options.
+ * For full type definitions, refer to vite package types.
+ */
+export type ViteConfig = {
+  /**
+   * Mode for Vite (default: "test").
+   */
+  mode?: string;
+  /**
+   * Module resolution options.
+   */
+  resolve?: {
+    /**
+     * Define custom aliases for imports.
+     */
+    alias?: Record<string, string | Array<string>>;
+    /**
+     * List of file extensions to try when resolving imports.
+     */
+    extensions?: Array<string>;
+  };
+  /**
+   * Define global constant replacements.
+   */
+  define?: Record<string, unknown>;
+};
+
+/**
+ * Future configuration for experimental features
+ */
+export type FutureConfig = {
+  /**
+   * Enable experimental Vite integration. Can be set to true to use default Vite config,
+   * or provide a ViteConfig object for custom configuration.
+   */
+  experimental_vite?: boolean | ViteConfig;
+};
+
 export type CoverageReporterName = keyof ReportOptions;
 
 export type CoverageReporterWithOptions<K = CoverageReporterName> =
