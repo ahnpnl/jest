@@ -7,6 +7,7 @@
 
 import * as os from 'os';
 import * as path from 'path';
+import * as fs from 'graceful-fs';
 import micromatch from 'micromatch';
 import type {TestPathPatternsExecutor} from '@jest/pattern';
 import type {Test, TestContext} from '@jest/test-result';
@@ -17,6 +18,7 @@ import {escapePathForRegex} from 'jest-regex-util';
 import {DependencyResolver} from 'jest-resolve-dependencies';
 import {buildSnapshotResolver} from 'jest-snapshot';
 import {globsToMatcher} from 'jest-util';
+import type GlobalDependencyGraph from './GlobalDependencyGraph';
 import type {Filter, Stats, TestPathCases} from './types';
 
 export type SearchResult = {
@@ -178,15 +180,86 @@ export default class SearchSource {
   async findRelatedTests(
     allPaths: Set<string>,
     collectCoverage: boolean,
+    otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     const dependencyResolver = await this._getOrBuildDependencyResolver();
+
+    // Use global dependency graph if available (feature flag enabled)
+    if (globalGraph) {
+      const relatedFiles = globalGraph.findRelatedTests(
+        allPaths,
+        this._context.config.rootDir,
+      );
+
+      if (!collectCoverage) {
+        return {
+          tests: toTests(
+            this._context,
+            relatedFiles.filter(f => this.isTestFilePath(f)),
+          ),
+        };
+      }
+
+      // For coverage collection, we still need to use dependencyResolver
+      // to get the full dependency map
+      const testModulesMap = dependencyResolver.resolveInverseModuleMap(
+        new Set(relatedFiles),
+        this.isTestFilePath.bind(this),
+        {skipNodeResolution: this._context.config.skipNodeResolution},
+      );
+
+      const allPathsAbsolute = new Set([...allPaths].map(p => path.resolve(p)));
+      const collectCoverageFrom = new Set<string>();
+
+      for (const testModule of testModulesMap) {
+        if (!testModule.dependencies) {
+          continue;
+        }
+
+        for (const p of testModule.dependencies) {
+          if (!allPathsAbsolute.has(p)) {
+            continue;
+          }
+
+          const filename = replaceRootDirInPath(
+            this._context.config.rootDir,
+            p,
+          );
+          collectCoverageFrom.add(
+            path.isAbsolute(filename)
+              ? path.relative(this._context.config.rootDir, filename)
+              : filename,
+          );
+        }
+      }
+
+      return {
+        collectCoverageFrom,
+        tests: toTests(
+          this._context,
+          testModulesMap.map(testModule => testModule.file),
+        ),
+      };
+    }
+
+    // Original implementation: Expand allPaths to include files from this project that depend on changed files in other projects
+    const expandedPaths = new Set(allPaths);
+    if (otherSearchSources && otherSearchSources.length > 0) {
+      const filesInThisProject =
+        await this._findFilesInThisProjectDependingOnOtherProjects(
+          otherSearchSources,
+          allPaths,
+        );
+      for (const f of filesInThisProject) expandedPaths.add(f);
+    }
 
     if (!collectCoverage) {
       return {
         tests: toTests(
           this._context,
           dependencyResolver.resolveInverse(
-            allPaths,
+            expandedPaths,
             this.isTestFilePath.bind(this),
             {skipNodeResolution: this._context.config.skipNodeResolution},
           ),
@@ -195,12 +268,14 @@ export default class SearchSource {
     }
 
     const testModulesMap = dependencyResolver.resolveInverseModuleMap(
-      allPaths,
+      expandedPaths,
       this.isTestFilePath.bind(this),
       {skipNodeResolution: this._context.config.skipNodeResolution},
     );
 
-    const allPathsAbsolute = new Set([...allPaths].map(p => path.resolve(p)));
+    const allPathsAbsolute = new Set(
+      [...expandedPaths].map(p => path.resolve(p)),
+    );
 
     const collectCoverageFrom = new Set<string>();
 
@@ -232,6 +307,66 @@ export default class SearchSource {
     };
   }
 
+  private async _findFilesInThisProjectDependingOnOtherProjects(
+    otherSearchSources: Array<SearchSource>,
+    changedPathsInOtherProjects: Set<string>,
+  ): Promise<Array<string>> {
+    const filesInThisProject: Array<string> = [];
+
+    // Get package names from other projects to detect cross-project imports
+    const otherProjectPackageNames = new Map<string, string>();
+    for (const otherSource of otherSearchSources) {
+      const pkgPath = path.join(
+        otherSource._context.config.rootDir,
+        'package.json',
+      );
+      try {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        if (pkg.name) {
+          otherProjectPackageNames.set(
+            pkg.name,
+            otherSource._context.config.rootDir,
+          );
+        }
+      } catch {
+        // No package.json or invalid JSON, skip
+      }
+    }
+
+    if (otherProjectPackageNames.size === 0) {
+      return filesInThisProject;
+    }
+
+    // Check all files in this project to see if they import from changed files in other projects
+    const allFilesInThisProject = this._context.hasteFS.getAllFiles();
+    for (const file of allFilesInThisProject) {
+      // Get raw dependencies (before resolution)
+      const deps = this._context.hasteFS.getDependencies(file);
+      if (!deps) continue;
+
+      // Check if this file imports from any other project's package
+      for (const dep of deps) {
+        for (const [pkgName, pkgRoot] of otherProjectPackageNames.entries()) {
+          // Check if dependency starts with package name (e.g., '@test/button')
+          if (dep.indexOf(pkgName) === 0) {
+            // Check if any changed files are in that package's root
+            for (const changedPath of changedPathsInOtherProjects) {
+              const normalizedChanged = normalizePosix(changedPath);
+              const normalizedPkgRoot = normalizePosix(pkgRoot);
+              if (normalizedChanged.indexOf(normalizedPkgRoot) === 0) {
+                filesInThisProject.push(file);
+                break;
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    return filesInThisProject;
+  }
+
   findTestsByPaths(paths: Array<string>): SearchResult {
     return {
       tests: toTests(
@@ -246,12 +381,19 @@ export default class SearchSource {
   async findRelatedTestsFromPattern(
     paths: Array<string>,
     collectCoverage: boolean,
+    otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     if (Array.isArray(paths) && paths.length > 0) {
       const resolvedPaths = paths.map(p =>
         path.resolve(this._context.config.cwd, p),
       );
-      return this.findRelatedTests(new Set(resolvedPaths), collectCoverage);
+      return this.findRelatedTests(
+        new Set(resolvedPaths),
+        collectCoverage,
+        otherSearchSources,
+        globalGraph,
+      );
     }
     return {tests: []};
   }
@@ -271,6 +413,8 @@ export default class SearchSource {
     globalConfig: Config.GlobalConfig,
     projectConfig: Config.ProjectConfig,
     changedFiles?: ChangedFiles,
+    otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     if (globalConfig.onlyChanged) {
       if (!changedFiles) {
@@ -295,6 +439,8 @@ export default class SearchSource {
       return this.findRelatedTestsFromPattern(
         paths,
         globalConfig.collectCoverage,
+        otherSearchSources,
+        globalGraph,
       );
     } else {
       return this.findMatchingTests(
@@ -332,11 +478,15 @@ export default class SearchSource {
     projectConfig: Config.ProjectConfig,
     changedFiles?: ChangedFiles,
     filter?: Filter,
+    otherSearchSources?: Array<SearchSource>,
+    globalGraph?: GlobalDependencyGraph,
   ): Promise<SearchResult> {
     const searchResult = await this._getTestPaths(
       globalConfig,
       projectConfig,
       changedFiles,
+      otherSearchSources,
+      globalGraph,
     );
 
     const filterPath = globalConfig.filter;

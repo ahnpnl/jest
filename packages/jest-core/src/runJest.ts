@@ -27,6 +27,7 @@ import Resolver from 'jest-resolve';
 import {requireOrImportModule, tryRealpath} from 'jest-util';
 import {JestHook, type JestHookEmitter, type TestWatcher} from 'jest-watcher';
 import type FailedTestsCache from './FailedTestsCache';
+import GlobalDependencyGraph from './GlobalDependencyGraph';
 import SearchSource from './SearchSource';
 import {type TestSchedulerContext, createTestScheduler} from './TestScheduler';
 import collectNodeHandles, {
@@ -45,12 +46,16 @@ const getTestPaths = async (
   changedFiles: ChangedFiles | undefined,
   jestHooks: JestHookEmitter,
   filter?: Filter,
+  otherSearchSources?: Array<SearchSource>,
+  globalGraph?: GlobalDependencyGraph,
 ) => {
   const data = await source.getTestPaths(
     globalConfig,
     projectConfig,
     changedFiles,
     filter,
+    otherSearchSources,
+    globalGraph,
   );
 
   if (data.tests.length === 0 && globalConfig.onlyChanged && data.noSCM) {
@@ -185,10 +190,31 @@ export default async function runJest({
 
   const searchSources = contexts.map(context => new SearchSource(context));
 
+  // Build global dependency graph if feature flag is enabled
+  let globalGraph: GlobalDependencyGraph | undefined;
+  if (
+    globalConfig.unstable_useGlobalDependencyGraph &&
+    globalConfig.findRelatedTests &&
+    searchSources.length > 1
+  ) {
+    performance.mark('jest/buildGlobalGraph:start');
+    globalGraph = new GlobalDependencyGraph(contexts);
+    await globalGraph.build();
+    performance.mark('jest/buildGlobalGraph:end');
+  }
+
   performance.mark('jest/getTestPaths:start');
   const testRunData: TestRunData = await Promise.all(
     contexts.map(async (context, index) => {
       const searchSource = searchSources[index];
+      // Pass other search sources only when findRelatedTests is used with multiple projects
+      // and global graph is NOT being used (fallback to original implementation)
+      const otherSearchSources =
+        globalConfig.findRelatedTests &&
+        searchSources.length > 1 &&
+        !globalGraph
+          ? searchSources.filter((_, i) => i !== index)
+          : undefined;
       const matches = await getTestPaths(
         globalConfig,
         context.config,
@@ -197,6 +223,8 @@ export default async function runJest({
         changedFilesPromise && (await changedFilesPromise),
         jestHooks,
         filter,
+        otherSearchSources,
+        globalGraph,
       );
       allTests = [...allTests, ...matches.tests];
 

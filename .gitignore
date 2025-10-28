@@ -58,3 +58,17 @@ crowdin-cli.jar
 
 # We don't want these temp files
 packages/jest-worker/src/workers/__tests__/__temp__
+performance-benchmark.js
+runtime-benchmark.js
+PERFORMANCE_TEST_SUMMARY.md
+
+# Performance analysis files
+performance-benchmark.js
+runtime-benchmark.js
+optimized-benchmark.js
+PERFORMANCE_TEST_SUMMARY.md
+VITEST_RESEARCH.md
+OPTIMIZATION_ANALYSIS.md
+comprehensive-benchmark.js
+GLOBAL_GRAPH_ANALYSIS.md
+VITE_API_RESEARCH.md
