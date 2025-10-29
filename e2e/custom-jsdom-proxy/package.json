@@ -1,0 +1,11 @@
+{
+  "name": "custom-jsdom-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "jsdom": "*"
+  },
+  "jest": {
+    "testEnvironment": "./custom-env.js"
+  }
+}
