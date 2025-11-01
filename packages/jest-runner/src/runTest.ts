@@ -25,7 +25,6 @@ import type {Config} from '@jest/types';
 import * as docblock from 'jest-docblock';
 import LeakDetector from 'jest-leak-detector';
 import {formatExecError} from 'jest-message-util';
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import Resolver, {resolveTestEnvironment} from 'jest-resolve';
 import type RuntimeClass from 'jest-runtime';
 import {ErrorWithStack, interopRequireDefault, setGlobal} from 'jest-util';
@@ -109,9 +108,26 @@ async function runTestInternal(
 
   const cacheFS = new Map([[path, testSource]]);
   const transformer = await createScriptTransformer(projectConfig, cacheFS);
+  const testEnvironmentIsEsm = Resolver.unstable_shouldLoadAsEsm(
+    testEnvironment,
+    projectConfig.extensionsToTreatAsEsm,
+  );
 
   const TestEnvironment: typeof JestEnvironment =
-    await transformer.requireAndTranspileModule(testEnvironment);
+    await transformer.requireAndTranspileModule(
+      testEnvironment,
+      undefined,
+      testEnvironmentIsEsm
+        ? {
+            applyInteropRequireDefault: true,
+            instrument: true,
+            supportsDynamicImport: true,
+            supportsExportNamespaceFrom: true,
+            supportsStaticESM: true,
+            supportsTopLevelAwait: true,
+          }
+        : undefined,
+    );
   const testFramework: TestFramework =
     await transformer.requireAndTranspileModule(
       process.env.JEST_JASMINE === '1'
