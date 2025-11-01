@@ -3,5 +3,9 @@
   "jest": {
     "testEnvironment": "<rootDir>/EnvESM.js",
     "transform": {}
+  },
+  "dependencies": {
+    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-typescript": "^7.0.0"
   }
 }
