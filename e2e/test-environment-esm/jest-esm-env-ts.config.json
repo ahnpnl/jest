@@ -1,0 +1,7 @@
+{
+  "testEnvironment": "./anotherEnvESM.ts",
+  "extensionsToTreatAsEsm": [".ts"],
+  "transform": {
+    "^.+\\.tsx?$": "babel-jest"
+  }
+}

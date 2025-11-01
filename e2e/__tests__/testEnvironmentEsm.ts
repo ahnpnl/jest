@@ -14,3 +14,10 @@ it('support test environment written in ESM', () => {
 
   expect(exitCode).toBe(0);
 });
+
+it('support test environment written in ESM with TypeScript', () => {
+  const DIR = resolve(__dirname, '../test-environment-esm');
+  const {exitCode} = runJest(DIR, ['--config', 'jest-esm-env-ts.config.json']);
+
+  expect(exitCode).toBe(0);
+});
