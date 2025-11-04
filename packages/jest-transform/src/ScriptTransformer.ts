@@ -5,8 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-import {createHash} from 'crypto';
-import * as path from 'path';
+import {createHash} from 'node:crypto';
+import * as path from 'node:path';
 import {transformSync as babelTransform} from '@babel/core';
 // @ts-expect-error: should just be `require.resolve`, but the tests mess that up
 import babelPluginIstanbul from 'babel-plugin-istanbul';
@@ -35,6 +35,7 @@ import {
 import shouldInstrument from './shouldInstrument';
 import type {
   FixedRawSourceMap,
+  ImportAndTranspileModuleOptions,
   Options,
   ReducedTransformOptions,
   RequireAndTranspileModuleOptions,
@@ -842,6 +843,74 @@ class ScriptTransformer {
     const isIgnored = ignoreRegexp ? ignoreRegexp.test(filename) : false;
 
     return this._config.transform.length > 0 && !isIgnored;
+  }
+
+  private _getEsmCacheExtension(ext: string): string {
+    if (ext === '.mts' || ext === '.mtsx') return '.mjs';
+    if (ext === '.cts' || ext === '.ctsx') return '.cjs';
+    if (ext === '.ts' || ext === '.tsx') return '.js';
+
+    return ext;
+  }
+
+  /**
+   * Transforms and imports an ES module.
+   * Unlike requireAndTranspileModule which uses pirates hooks,
+   * this method transforms the file first, writes it to cache,
+   * then imports it using dynamic import().
+   *
+   * This is necessary for .mts, .ts files in ESM format
+   */
+  async importAndTranspileModule<ModuleType = unknown>(
+    moduleName: string,
+    callback?: (module: ModuleType) => void | Promise<void>,
+    options?: ImportAndTranspileModuleOptions,
+  ): Promise<ModuleType> {
+    const transformOptions: Options = {
+      collectCoverage: options?.collectCoverage ?? false,
+      collectCoverageFrom: options?.collectCoverageFrom ?? [],
+      coverageProvider: options?.coverageProvider ?? 'v8',
+      isInternalModule: false,
+      supportsDynamicImport: true,
+      supportsExportNamespaceFrom: true,
+      supportsStaticESM: true,
+      supportsTopLevelAwait: true,
+      ...options,
+    };
+    const transformResult = await this.transformAsync(
+      moduleName,
+      transformOptions,
+    );
+    const ext = path.extname(moduleName);
+    const targetExt = this._getEsmCacheExtension(ext);
+    const tempTransformedPath = moduleName.replace(
+      /\.(mts|mtsx|ts|tsx|mjs|js)$/,
+      `.jest-esm-transform-${Date.now()}${targetExt}`,
+    );
+
+    fs.writeFileSync(tempTransformedPath, transformResult.code, 'utf8');
+
+    try {
+      const importedModule: object =
+        await requireOrImportModule(tempTransformedPath);
+      const esmModule = (
+        'default' in importedModule ? importedModule.default : importedModule
+      ) as ModuleType;
+      if (callback) {
+        const cbResult = callback(esmModule);
+        if (isPromise(cbResult)) {
+          await cbResult;
+        }
+      }
+
+      return esmModule;
+    } finally {
+      try {
+        fs.unlinkSync(tempTransformedPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
   }
 }
 
