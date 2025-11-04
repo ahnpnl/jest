@@ -1169,6 +1169,76 @@ If you also have specified [`rootDir`](#rootdir-string), the resolution of this 
 
 :::
 
+### `plugins` \[array&lt;Plugin&gt;]
+
+Default: `[]`
+
+:::warning
+
+This is an experimental feature and the API may change in future releases.
+
+:::
+
+An array of plugin objects that extend Jest's functionality. Plugins can modify configuration, transform code, provide watch mode interactivity, and more. This unified API consolidates the previous watch plugin system with new transformation and configuration capabilities.
+
+Each plugin is an object or a function that returns an object with the following optional methods:
+
+- `name` (required): A unique identifier for the plugin
+- `config`: Modify Jest configuration before it's normalized
+- `configResolved`: React to the resolved configuration
+- `configureJest`: Configure Jest with access to both project and global config
+- `transform`: Transform code before it's executed
+- `registerWatchEventsHandler`: Register handlers for watch mode lifecycle events (migrated from watch plugin `apply`)
+- `defineWatchMenu`: Define interactive watch mode key bindings (migrated from watch plugin `getUsageInfo`)
+- `onWatchMenuInteracted`: Execute custom actions in watch mode (migrated from watch plugin `run`)
+- `onKey`: Handle key presses in watch mode (same as watch plugin `onKey`)
+
+```js tab
+/** @type {import('jest').Config} */
+const config = {
+  plugins: [
+    {
+      name: 'my-jest-plugin',
+      configureJest(context) {
+        console.log('Configuring Jest for project:', context.config.rootDir);
+      },
+    },
+  ],
+};
+
+module.exports = config;
+```
+
+```ts tab
+import type {Config} from 'jest';
+
+function myPlugin(): Config.Plugin {
+  return {
+    config(config, context) {
+      // Modify config before normalization
+      return {
+        ...config,
+        testEnvironment: config.testEnvironment || 'node',
+      };
+    },
+    configResolved(config, context) {
+      // React to resolved configuration
+      console.log('Config resolved for:', config.rootDir);
+    },
+    configureJest(context) {
+      console.log('Configuring Jest for project:', context.config.rootDir);
+    },
+    name: 'my-jest-plugin',
+  };
+}
+
+const config: Config = {
+  plugins: [myPlugin()],
+};
+
+export default config;
+```
+
 ### `prettierPath` \[string]
 
 Default: `'prettier'`
@@ -2460,6 +2530,12 @@ export default defineConfig({
 ### `watchPlugins` \[array&lt;string | \[string, Object]&gt;]
 
 Default: `[]`
+
+:::tip
+
+Consider migrating to the unified [`plugins`](#plugins-arrayltplugingt) API, which supports both watch mode functionality and additional capabilities like code transformation and configuration modification. The `watchPlugins` field is maintained for backward compatibility.
+
+:::
 
 This option allows you to use custom watch plugins. Read more about watch plugins [here](watch-plugins).
 

@@ -89,6 +89,7 @@ class ScriptTransformer {
     {transformer: Transformer; transformerConfig: unknown}
   >();
   private _transformsAreLoaded = false;
+  private readonly _plugins: Array<Config.JestPlugin>;
 
   constructor(
     private readonly _config: Config.ProjectConfig,
@@ -109,6 +110,64 @@ class ScriptTransformer {
     }
 
     this._cache = projectCache;
+    this._plugins = this._config.plugins ?? [];
+  }
+
+  private async _applyPluginTransforms(
+    code: string,
+    filename: string,
+  ): Promise<string> {
+    let transformedCode = code;
+
+    const pluginsToApply = this._plugins.filter(plugin => plugin.transform);
+
+    for (const plugin of pluginsToApply) {
+      if (plugin.transform) {
+        const result = await plugin.transform(transformedCode, filename);
+        if (result) {
+          if (typeof result === 'string') {
+            transformedCode = result;
+          } else if (result.code) {
+            transformedCode = result.code;
+          }
+        }
+      }
+    }
+
+    return transformedCode;
+  }
+
+  private _applyPluginTransformsSync(code: string, filename: string): string {
+    let transformedCode = code;
+
+    const pluginsToApply = this._plugins.filter(plugin => plugin.transform);
+
+    for (const plugin of pluginsToApply) {
+      if (plugin.transform) {
+        const result = plugin.transform(transformedCode, filename);
+        // For sync execution, we need to handle the result immediately
+        // If it's a promise, we can't wait for it in sync context
+        if (result && typeof result === 'object' && 'then' in result) {
+          throw new Error(
+            `Plugin "${plugin.name}" returned a promise from transform hook in sync context. ` +
+              'Please ensure your plugin transform is synchronous or use async transforms.',
+          );
+        }
+        if (result) {
+          if (typeof result === 'string') {
+            transformedCode = result;
+          } else if ('code' in result && result.code) {
+            transformedCode = result.code;
+          }
+        }
+      }
+    }
+
+    return transformedCode;
+  }
+
+  private _hasPluginTransforms(): boolean {
+    return this._plugins.some(plugin => plugin.transform);
   }
 
   private _buildCacheKeyFromFileInfo(
@@ -507,12 +566,19 @@ class ScriptTransformer {
 
     let shouldCallTransform = false;
 
-    if (transformer && this.shouldTransform(filename)) {
+    let currentContent = content;
+
+    // Prioritize plugins with transform hooks over regular transformers
+    if (this._hasPluginTransforms()) {
+      // If plugins have transforms, apply them
+      currentContent = this._applyPluginTransformsSync(content, filename);
+      processed = {code: currentContent, map: null};
+    } else if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
 
       assertSyncTransformer(transformer, this._getTransformPath(filename));
 
-      processed = transformer.process(content, filename, {
+      processed = transformer.process(currentContent, filename, {
         ...options,
         cacheFS: this._cacheFS,
         config: this._config,
@@ -567,7 +633,14 @@ class ScriptTransformer {
 
     let shouldCallTransform = false;
 
-    if (transformer && this.shouldTransform(filename)) {
+    let currentContent = content;
+
+    // Prioritize plugins with transform hooks over regular transformers
+    if (this._hasPluginTransforms()) {
+      // If plugins have transforms, apply them
+      currentContent = await this._applyPluginTransforms(content, filename);
+      processed = {code: currentContent, map: null};
+    } else if (transformer && this.shouldTransform(filename)) {
       shouldCallTransform = true;
       const process = transformer.processAsync ?? transformer.process;
 
@@ -577,7 +650,7 @@ class ScriptTransformer {
         'A transformer must always export either a `process` or `processAsync`',
       );
 
-      processed = await process(content, filename, {
+      processed = await process(currentContent, filename, {
         ...options,
         cacheFS: this._cacheFS,
         config: this._config,

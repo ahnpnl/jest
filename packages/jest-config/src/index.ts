@@ -112,6 +112,27 @@ export async function readConfig(
   );
 
   const {globalConfig, projectConfig} = groupOptions(options);
+
+  // Process plugins after config is resolved
+  if (projectConfig.plugins && projectConfig.plugins.length > 0) {
+    const pluginContext: Config.JestPluginContext = {
+      config: projectConfig,
+      globalConfig,
+    };
+
+    for (const plugin of projectConfig.plugins) {
+      // Call configResolved hook
+      if (plugin.configResolved) {
+        await plugin.configResolved(projectConfig, pluginContext);
+      }
+
+      // Call configureJest hook
+      if (plugin.configureJest) {
+        await plugin.configureJest(pluginContext);
+      }
+    }
+  }
+
   return {
     configPath,
     globalConfig,
@@ -223,6 +244,7 @@ const groupOptions = (
     modulePathIgnorePatterns: options.modulePathIgnorePatterns,
     modulePaths: options.modulePaths,
     openHandlesTimeout: options.openHandlesTimeout,
+    plugins: options.plugins,
     prettierPath: options.prettierPath,
     reporters: options.reporters,
     resetMocks: options.resetMocks,
