@@ -157,6 +157,20 @@ If you do call `updateConfigAndRun`, your `run` method should not resolve to a t
 
 :::
 
+### `onKey(key)`
+
+The `onKey` method can be used to handle every user key press in watch mode. This allows watch plugins to handle keys that are not part of the watch menu.
+
+```javascript
+class MyWatchPlugin {
+  onKey(key) {
+    if (key === 'x') {
+      // handle 'x' key press
+    }
+  }
+}
+```
+
 #### Authorized configuration keys
 
 For stability and safety reasons, only part of the global configuration keys can be updated with `updateConfigAndRun`. The current white list is as follows:

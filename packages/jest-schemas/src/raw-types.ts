@@ -290,6 +290,7 @@ export const InitialOptions = Type.Partial(
     outputFile: Type.String(),
     passWithNoTests: Type.Boolean(),
     preset: Type.Union([Type.String(), Type.Null()]),
+    plugins: Type.Array(Type.Unknown()),
     prettierPath: Type.Union([Type.String(), Type.Null()]),
     projects: Type.Array(
       Type.Union([
